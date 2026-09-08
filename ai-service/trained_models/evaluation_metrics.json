@@ -1,0 +1,173 @@
+{
+  "dataset": {
+    "total_samples": 1800,
+    "feature_count": 12,
+    "features": [
+      "rpm",
+      "cht",
+      "egt",
+      "oil_pressure",
+      "oil_temperature",
+      "fuel_flow",
+      "vibration",
+      "battery_voltage",
+      "injection_timing",
+      "throttle",
+      "torque",
+      "power"
+    ]
+  },
+  "anomaly_detection": {
+    "accuracy": 0.1994,
+    "precision": 1.0,
+    "recall": 0.1105,
+    "f1_score": 0.199,
+    "roc_auc": 0.954
+  },
+  "fault_classification": {
+    "accuracy": 1.0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1_score": 1.0,
+    "confusion_matrix": [
+      [
+        35,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        35,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        35,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        36,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        36,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        36,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        36,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        36,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        36,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        36
+      ]
+    ],
+    "classes": [
+      "Healthy",
+      "Misfire",
+      "Injector Abnormality",
+      "Lubrication Degradation",
+      "Sensor Drift",
+      "Sensor Failure",
+      "Combustion Instability",
+      "Overheating",
+      "Abnormal Vibration",
+      "Electrical System Degradation"
+    ]
+  },
+  "rul_prediction": {
+    "mae_hours": 93.21,
+    "rmse_hours": 130.57,
+    "r2_score": 0.4625
+  },
+  "disclaimer": "Metrics calculated from physics-guided synthetic telemetry benchmark. Real-world UAV flight deployment requires certified hardware validation."
+}
