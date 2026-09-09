@@ -27,9 +27,10 @@ export default function MaleUav3D({
   const isCutaway = viewMode === 'XRAY_CUTAWAY';
   const isEngineOnly = viewMode === 'ENGINE_ONLY';
 
-  // Body materials
-  const airframeColor = '#1e2631'; // Tactical Radar-Absorbent Dark Slate Gray
-  const airframeOpacity = isCutaway ? 0.28 : 1.0;
+  // Vibrant & Colorful Aerospace Livery Materials
+  // Base: Deep Navy Blue Aerospace Composite with High Metallic Sheen
+  const airframeColor = isCutaway ? '#0284c7' : '#1e3a8a'; // Vibrant Royal/Navy Aerospace Blue
+  const airframeOpacity = isCutaway ? 0.35 : 1.0;
   const isTransparent = isCutaway;
 
   // Strobe and Propeller dynamic animations
@@ -68,25 +69,31 @@ export default function MaleUav3D({
   return (
     <group position={[0, 0, 0]} scale={[1, 1, 1]}>
       {/* 1. MAIN FUSELAGE ASSEMBLY */}
-      {/* A. Forward Nose & SATCOM Radome Bulb */}
+      {/* A. Forward Nose & SATCOM Radome Bulb (Clean Bright Cyan / White Contrast) */}
       <mesh position={[0, 0.4, 3.6]} rotation={[Math.PI / 16, 0, 0]}>
         <sphereGeometry args={[0.9, 32, 24]} />
         <meshStandardMaterial
-          color={airframeColor}
-          metalness={0.7}
-          roughness={0.3}
+          color={isCutaway ? '#38bdf8' : '#e0f2fe'}
+          metalness={0.6}
+          roughness={0.2}
           transparent={isTransparent}
-          opacity={airframeOpacity}
+          opacity={isCutaway ? 0.4 : 1.0}
           wireframe={isCutaway && selectedPart === 'airframe'}
         />
       </mesh>
 
-      {/* B. Center Fuselage Cabin (Avionics & Fuel Cell Bay) */}
+      {/* Nose Cone Tip (Vibrant Orange / Amber Pitot Warning Section) */}
+      <mesh position={[0, 0.4, 4.45]} rotation={[Math.PI / 16, 0, 0]}>
+        <coneGeometry args={[0.25, 0.6, 24]} />
+        <meshStandardMaterial color="#f97316" metalness={0.8} roughness={0.2} />
+      </mesh>
+
+      {/* B. Center Fuselage Cabin (Vibrant Royal Blue with Crimson & Gold Racing Stripes) */}
       <mesh position={[0, 0.2, 1.2]} rotation={[Math.PI / 2, 0, 0]}>
         <cylinderGeometry args={[0.85, 0.95, 3.8, 32]} />
         <meshStandardMaterial
           color={airframeColor}
-          metalness={0.75}
+          metalness={0.7}
           roughness={0.25}
           transparent={isTransparent}
           opacity={airframeOpacity}
@@ -94,48 +101,64 @@ export default function MaleUav3D({
         />
       </mesh>
 
-      {/* C. Aft Fuselage (Engine Nacelle Cowling) */}
+      {/* Fuselage Dorsal Racing Stripe (High-Visibility Gold / Yellow Accent) */}
+      <mesh position={[0, 1.05, 1.2]} rotation={[Math.PI / 2, 0, 0]}>
+        <boxGeometry args={[0.18, 3.7, 0.05]} />
+        <meshStandardMaterial color="#facc15" emissive="#ca8a04" emissiveIntensity={0.3} metalness={0.6} roughness={0.3} />
+      </mesh>
+
+      {/* Fuselage Flank Accent Stripes (Dual Crimson Red Stripes) */}
+      <mesh position={[0.88, 0.2, 1.2]} rotation={[Math.PI / 2, 0, 0]}>
+        <boxGeometry args={[0.06, 3.6, 0.12]} />
+        <meshStandardMaterial color="#ef4444" emissive="#b91c1c" emissiveIntensity={0.4} />
+      </mesh>
+      <mesh position={[-0.88, 0.2, 1.2]} rotation={[Math.PI / 2, 0, 0]}>
+        <boxGeometry args={[0.06, 3.6, 0.12]} />
+        <meshStandardMaterial color="#ef4444" emissive="#b91c1c" emissiveIntensity={0.4} />
+      </mesh>
+
+      {/* C. Aft Fuselage (Engine Nacelle Cowling - Deep Emerald / Amber Thermal Glow) */}
       <mesh position={[0, 0.25, -1.8]} rotation={[Math.PI / 2, 0, 0]}>
         <cylinderGeometry args={[0.65, 0.85, 2.6, 32]} />
         <meshStandardMaterial
-          color={airframeColor}
+          color={isCutaway ? '#0ea5e9' : '#047857'}
           metalness={0.8}
           roughness={0.2}
           transparent={isTransparent}
-          opacity={isCutaway ? 0.15 : 1.0}
+          opacity={isCutaway ? 0.2 : 1.0}
           wireframe={isCutaway}
         />
       </mesh>
 
-      {/* D. Tactical Markings: Roundel & Tail Number Decal */}
+      {/* D. Tactical Markings: High-Contrast Tri-Color Roundel */}
       {!isCutaway && (
         <>
-          {/* Indian / Tactical Roundel Accent on Fuselage */}
-          <mesh position={[0.86, 0.3, 1.2]} rotation={[0, Math.PI / 2, 0]}>
-            <circleGeometry args={[0.22, 24]} />
-            <meshStandardMaterial color="#f97316" />
+          {/* Right Flank Saffron-White-Green Roundel */}
+          <mesh position={[0.89, 0.35, 1.2]} rotation={[0, Math.PI / 2, 0]}>
+            <circleGeometry args={[0.28, 32]} />
+            <meshStandardMaterial color="#ff7722" emissive="#ff7722" emissiveIntensity={0.2} />
           </mesh>
-          <mesh position={[0.87, 0.3, 1.2]} rotation={[0, Math.PI / 2, 0]}>
-            <circleGeometry args={[0.15, 24]} />
+          <mesh position={[0.90, 0.35, 1.2]} rotation={[0, Math.PI / 2, 0]}>
+            <circleGeometry args={[0.19, 32]} />
             <meshStandardMaterial color="#ffffff" />
           </mesh>
-          <mesh position={[0.88, 0.3, 1.2]} rotation={[0, Math.PI / 2, 0]}>
-            <circleGeometry args={[0.07, 24]} />
-            <meshStandardMaterial color="#10b981" />
+          <mesh position={[0.91, 0.35, 1.2]} rotation={[0, Math.PI / 2, 0]}>
+            <circleGeometry args={[0.10, 32]} />
+            <meshStandardMaterial color="#10b981" emissive="#059669" emissiveIntensity={0.2} />
           </mesh>
 
-          {/* Left Roundel */}
-          <mesh position={[-0.86, 0.3, 1.2]} rotation={[0, -Math.PI / 2, 0]}>
-            <circleGeometry args={[0.22, 24]} />
-            <meshStandardMaterial color="#f97316" />
+          {/* Left Flank Roundel */}
+          <mesh position={[-0.89, 0.35, 1.2]} rotation={[0, -Math.PI / 2, 0]}>
+            <circleGeometry args={[0.28, 32]} />
+            <meshStandardMaterial color="#ff7722" emissive="#ff7722" emissiveIntensity={0.2} />
           </mesh>
-          <mesh position={[-0.87, 0.3, 1.2]} rotation={[0, -Math.PI / 2, 0]}>
-            <circleGeometry args={[0.15, 24]} />
+          <mesh position={[-0.90, 0.35, 1.2]} rotation={[0, -Math.PI / 2, 0]}>
+            <circleGeometry args={[0.19, 32]} />
             <meshStandardMaterial color="#ffffff" />
           </mesh>
-          <mesh position={[-0.88, 0.3, 1.2]} rotation={[0, -Math.PI / 2, 0]}>
-            <circleGeometry args={[0.07, 24]} />
-            <meshStandardMaterial color="#10b981" />
+          <mesh position={[-0.91, 0.35, 1.2]} rotation={[0, -Math.PI / 2, 0]}>
+            <circleGeometry args={[0.10, 32]} />
+            <meshStandardMaterial color="#10b981" emissive="#059669" emissiveIntensity={0.2} />
           </mesh>
         </>
       )}
@@ -145,7 +168,7 @@ export default function MaleUav3D({
         {/* Center Wing Box Centerpiece */}
         <mesh position={[0, 0, 0]}>
           <boxGeometry args={[1.9, 0.22, 1.4]} />
-          <meshStandardMaterial color="#1e293b" metalness={0.8} roughness={0.3} />
+          <meshStandardMaterial color="#0f172a" metalness={0.8} roughness={0.3} />
         </mesh>
 
         {/* Right Wing (Span +X) */}
@@ -159,15 +182,34 @@ export default function MaleUav3D({
             opacity={isCutaway ? 0.5 : 1.0}
           />
         </mesh>
-        {/* Right Wingtip Winglet */}
+
+        {/* Right Wing Leading-Edge High-Visibility Orange De-Icing Boot */}
+        <mesh position={[4.6, 0.12, 0.52]} rotation={[0, 0, 0.04]}>
+          <boxGeometry args={[7.6, 0.13, 0.08]} />
+          <meshStandardMaterial color="#ea580c" emissive="#ea580c" emissiveIntensity={0.25} />
+        </mesh>
+
+        {/* Right Wing Flap/Aileron Trim Stripe (Vibrant Sky Blue) */}
+        <mesh position={[4.6, 0.18, -0.42]} rotation={[0, 0, 0.04]}>
+          <boxGeometry args={[7.2, 0.04, 0.12]} />
+          <meshStandardMaterial color="#38bdf8" />
+        </mesh>
+
+        {/* Right Wing Tactical High-Vis Yellow Warning Band */}
+        <mesh position={[7.0, 0.13, 0]} rotation={[0, 0, 0.04]}>
+          <boxGeometry args={[0.5, 0.13, 1.12]} />
+          <meshStandardMaterial color="#facc15" emissive="#ca8a04" emissiveIntensity={0.4} />
+        </mesh>
+
+        {/* Right Wingtip Winglet (Bright Amber Gold) */}
         <mesh position={[8.5, 0.45, 0]} rotation={[0, 0, Math.PI / 4]}>
           <boxGeometry args={[0.7, 0.08, 0.7]} />
-          <meshStandardMaterial color="#0ea5e9" metalness={0.9} roughness={0.2} />
+          <meshStandardMaterial color="#f59e0b" emissive="#d97706" emissiveIntensity={0.4} metalness={0.8} roughness={0.2} />
         </mesh>
         {/* Right Wingtip Green Navigation Strobe */}
         <mesh position={[8.7, 0.7, 0]}>
-          <sphereGeometry args={[0.08, 16, 16]} />
-          <meshStandardMaterial color="#10b981" emissive="#10b981" emissiveIntensity={2.5} />
+          <sphereGeometry args={[0.1, 16, 16]} />
+          <meshStandardMaterial color="#10b981" emissive="#10b981" emissiveIntensity={3.5} />
         </mesh>
 
         {/* Left Wing (Span -X) */}
@@ -181,24 +223,48 @@ export default function MaleUav3D({
             opacity={isCutaway ? 0.5 : 1.0}
           />
         </mesh>
-        {/* Left Wingtip Winglet */}
+
+        {/* Left Wing Leading-Edge High-Visibility Orange De-Icing Boot */}
+        <mesh position={[-4.6, 0.12, 0.52]} rotation={[0, 0, -0.04]}>
+          <boxGeometry args={[7.6, 0.13, 0.08]} />
+          <meshStandardMaterial color="#ea580c" emissive="#ea580c" emissiveIntensity={0.25} />
+        </mesh>
+
+        {/* Left Wing Flap/Aileron Trim Stripe (Vibrant Sky Blue) */}
+        <mesh position={[-4.6, 0.18, -0.42]} rotation={[0, 0, -0.04]}>
+          <boxGeometry args={[7.2, 0.04, 0.12]} />
+          <meshStandardMaterial color="#38bdf8" />
+        </mesh>
+
+        {/* Left Wing Tactical High-Vis Yellow Warning Band */}
+        <mesh position={[-7.0, 0.13, 0]} rotation={[0, 0, -0.04]}>
+          <boxGeometry args={[0.5, 0.13, 1.12]} />
+          <meshStandardMaterial color="#facc15" emissive="#ca8a04" emissiveIntensity={0.4} />
+        </mesh>
+
+        {/* Left Wingtip Winglet (Bright Amber Gold) */}
         <mesh position={[-8.5, 0.45, 0]} rotation={[0, 0, -Math.PI / 4]}>
           <boxGeometry args={[0.7, 0.08, 0.7]} />
-          <meshStandardMaterial color="#0ea5e9" metalness={0.9} roughness={0.2} />
+          <meshStandardMaterial color="#f59e0b" emissive="#d97706" emissiveIntensity={0.4} metalness={0.8} roughness={0.2} />
         </mesh>
         {/* Left Wingtip Red Navigation Strobe */}
         <mesh position={[-8.7, 0.7, 0]}>
-          <sphereGeometry args={[0.08, 16, 16]} />
-          <meshStandardMaterial color="#ef4444" emissive="#ef4444" emissiveIntensity={2.5} />
+          <sphereGeometry args={[0.1, 16, 16]} />
+          <meshStandardMaterial color="#ef4444" emissive="#ef4444" emissiveIntensity={3.5} />
         </mesh>
       </group>
 
-      {/* 3. V-TAIL EMPENNAGE (INVERTED V-TAIL MALE UAV CONFIGURATION) */}
+      {/* 3. V-TAIL EMPENNAGE (INVERTED V-TAIL MALE UAV CONFIGURATION WITH GOLD & CRIMSON ACCENTS) */}
       <group position={[0, 0.3, -3.1]}>
         {/* Right V-Stabilizer Fin */}
         <mesh position={[0.7, 0.85, 0]} rotation={[0.1, 0, -Math.PI / 4]}>
           <boxGeometry args={[0.1, 1.8, 0.8]} />
           <meshStandardMaterial color={airframeColor} metalness={0.75} roughness={0.25} />
+        </mesh>
+        {/* Right V-Tail Tip High-Vis Golden Accent */}
+        <mesh position={[1.3, 1.45, 0.02]} rotation={[0.1, 0, -Math.PI / 4]}>
+          <boxGeometry args={[0.11, 0.35, 0.78]} />
+          <meshStandardMaterial color="#facc15" emissive="#eab308" emissiveIntensity={0.5} />
         </mesh>
 
         {/* Left V-Stabilizer Fin */}
@@ -206,11 +272,16 @@ export default function MaleUav3D({
           <boxGeometry args={[0.1, 1.8, 0.8]} />
           <meshStandardMaterial color={airframeColor} metalness={0.75} roughness={0.25} />
         </mesh>
+        {/* Left V-Tail Tip High-Vis Golden Accent */}
+        <mesh position={[-1.3, 1.45, 0.02]} rotation={[0.1, 0, Math.PI / 4]}>
+          <boxGeometry args={[0.11, 0.35, 0.78]} />
+          <meshStandardMaterial color="#facc15" emissive="#eab308" emissiveIntensity={0.5} />
+        </mesh>
 
-        {/* Ventral Under-fin */}
+        {/* Ventral Under-fin (Bright Red Warning Skid Fin) */}
         <mesh position={[0, -0.65, 0.2]} rotation={[-0.1, 0, 0]}>
           <boxGeometry args={[0.08, 0.8, 0.7]} />
-          <meshStandardMaterial color="#0f172a" metalness={0.8} roughness={0.3} />
+          <meshStandardMaterial color="#ef4444" metalness={0.7} roughness={0.3} />
         </mesh>
       </group>
 
@@ -283,10 +354,10 @@ export default function MaleUav3D({
 
       {/* 7. REAL-TIME ROTATING PUSHER PROPELLER (MOUNTED AT REAR TAIL HUB) */}
       <group position={[0, 0.22, -3.2]} ref={propRef}>
-        {/* Central Bullet Spinner Hub */}
+        {/* Central Bullet Spinner Hub (Polished Aerospace Gold) */}
         <mesh rotation={[-Math.PI / 2, 0, 0]}>
           <coneGeometry args={[0.22, 0.45, 24]} />
-          <meshStandardMaterial color="#0f172a" metalness={0.95} roughness={0.15} />
+          <meshStandardMaterial color="#f59e0b" metalness={0.92} roughness={0.15} emissive="#b45309" emissiveIntensity={0.3} />
         </mesh>
 
         {/* 3 Aerodynamic Propeller Blades (120 deg apart) */}
@@ -308,7 +379,7 @@ export default function MaleUav3D({
       {/* 8. DORSAL ENGINE COOLING AIR SCOOP (NACA DUCT) */}
       <mesh position={[0, 0.85, -0.8]} rotation={[-Math.PI / 10, 0, 0]}>
         <boxGeometry args={[0.5, 0.25, 0.9]} />
-        <meshStandardMaterial color="#0f172a" metalness={0.9} roughness={0.2} />
+        <meshStandardMaterial color="#0284c7" metalness={0.85} roughness={0.2} />
       </mesh>
 
       {/* 9. INTERACTIVE SYSTEM HOTSPOT BEACONS */}
