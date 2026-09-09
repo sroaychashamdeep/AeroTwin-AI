@@ -1,11 +1,12 @@
 /**
  * AEROTWIN AI - Dedicated 3D Digital Twin Inspection Page (/digital-twin)
+ * High-Fidelity MALE UAV Airframe & Turbocharged Engine Twin
  */
 
 import React, { useState } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls, Grid, Environment } from '@react-three/drei';
-import PistonEngine3D from '../three/PistonEngine3D';
+import { OrbitControls, Grid } from '@react-three/drei';
+import MaleUav3D from '../three/MaleUav3D';
 import { useTelemetryStore } from '../store/telemetryStore';
 import {
   Box,
@@ -18,20 +19,23 @@ import {
   Droplet,
   Info,
   ShieldAlert,
-  RotateCw
+  Plane,
+  RotateCw,
+  Sparkles
 } from 'lucide-react';
 
 export default function DigitalTwinPage({ onOpenFaultModal }) {
   const { telemetry, health, fault, activeFaults } = useTelemetryStore();
   const [cameraView, setCameraView] = useState('iso');
-  const [selectedPart, setSelectedPart] = useState('cylinders');
+  const [viewMode, setViewMode] = useState('XRAY_CUTAWAY'); // 'FULL_UAV', 'XRAY_CUTAWAY', 'ENGINE_ONLY'
+  const [selectedPart, setSelectedPart] = useState('airframe');
 
-  // Camera preset positions
+  // Camera preset positions tailored for full UAV airframe and close engine inspection
   const cameraPresets = {
-    iso: [4.5, 3.5, 4.5],
-    front: [0, 1.5, 6.0],
-    top: [0, 6.5, 0.1],
-    side: [6.0, 1.0, 0]
+    iso: viewMode === 'ENGINE_ONLY' ? [4.5, 3.5, 4.5] : [7.5, 5.0, 8.5],
+    front: viewMode === 'ENGINE_ONLY' ? [0, 1.5, 6.0] : [0, 2.0, 11.0],
+    top: viewMode === 'ENGINE_ONLY' ? [0, 6.5, 0.1] : [0, 13.0, 0.1],
+    side: viewMode === 'ENGINE_ONLY' ? [6.0, 1.0, 0] : [11.0, 2.0, 0]
   };
 
   const isFaulted = fault.primary_fault !== 'Healthy';
@@ -39,28 +43,49 @@ export default function DigitalTwinPage({ onOpenFaultModal }) {
   return (
     <div className="h-[calc(100vh-3.5rem)] flex flex-col font-mono relative overflow-hidden bg-aeroblack">
       {/* Sub-header Toolbar */}
-      <div className="h-12 bg-aerodark border-b border-aeroborder px-4 flex items-center justify-between z-10 shrink-0">
+      <div className="h-12 bg-aerodark border-b border-aeroborder px-4 flex flex-wrap items-center justify-between z-10 shrink-0 gap-2">
         <div className="flex items-center space-x-3">
-          <Box className="w-5 h-5 text-sky-400" />
+          <Plane className="w-5 h-5 text-sky-400" />
           <span className="text-sm font-bold text-white tracking-wider">
-            3D DIGITAL TWIN • ROTAX 914/915 TURBOCHAGED PROPULSION ASSEMBLY
+            3D DIGITAL TWIN • TAPAS MALE-201 TACTICAL UAV & ROTAX 914/915 TURBO
           </span>
-          <span className="text-xs px-2 py-0.5 rounded bg-sky-950 border border-sky-800 text-sky-300">
-            FADEC SYNCHRONIZED
+          <span className="text-xs px-2 py-0.5 rounded bg-sky-950 border border-sky-800 text-sky-300 font-bold hidden sm:inline-block">
+            FADEC REAL-TIME SYNC
           </span>
         </div>
 
         <div className="flex items-center space-x-3 text-xs">
-          {/* Camera View Switcher */}
+          {/* View Mode Switcher: Full UAV / Engine Cutaway / Isolated Engine */}
           <div className="flex items-center space-x-1 bg-aerocard p-1 rounded border border-aeroborder">
+            {[
+              { id: 'FULL_UAV', label: 'FULL AIRFRAME' },
+              { id: 'XRAY_CUTAWAY', label: 'ENGINE CUTAWAY' },
+              { id: 'ENGINE_ONLY', label: 'ISOLATED ENGINE' }
+            ].map((mode) => (
+              <button
+                key={mode.id}
+                onClick={() => setViewMode(mode.id)}
+                className={`px-2.5 py-1 rounded font-bold transition text-[11px] ${
+                  viewMode === mode.id
+                    ? 'bg-sky-600 text-white shadow'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                {mode.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Camera View Switcher */}
+          <div className="hidden lg:flex items-center space-x-1 bg-aerocard p-1 rounded border border-aeroborder">
             <Camera className="w-3.5 h-3.5 text-slate-400 ml-1 mr-1" />
             {['iso', 'front', 'top', 'side'].map((view) => (
               <button
                 key={view}
                 onClick={() => setCameraView(view)}
-                className={`px-2 py-0.5 rounded uppercase font-semibold transition ${
+                className={`px-2 py-0.5 rounded uppercase font-semibold transition text-[11px] ${
                   cameraView === view
-                    ? 'bg-sky-600 text-white'
+                    ? 'bg-slate-700 text-white'
                     : 'text-slate-400 hover:text-white'
                 }`}
               >
@@ -71,7 +96,7 @@ export default function DigitalTwinPage({ onOpenFaultModal }) {
 
           <button
             onClick={onOpenFaultModal}
-            className="px-3 py-1 rounded bg-red-600 hover:bg-red-500 text-white font-semibold transition flex items-center space-x-1"
+            className="px-3 py-1 rounded bg-red-600 hover:bg-red-500 text-white font-semibold transition flex items-center space-x-1 shadow-md shadow-red-950/40"
           >
             <ShieldAlert className="w-3.5 h-3.5" />
             <span>INJECT FAULT</span>
@@ -84,48 +109,60 @@ export default function DigitalTwinPage({ onOpenFaultModal }) {
         {/* 3D WebGL Canvas */}
         <div className="flex-1 h-full relative">
           <Canvas camera={{ position: cameraPresets[cameraView], fov: 42 }}>
-            <ambientLight intensity={0.7} />
-            <directionalLight position={[10, 12, 8]} intensity={1.4} castShadow />
-            <directionalLight position={[-10, -5, -6]} intensity={0.5} />
-            <PistonEngine3D
+            <ambientLight intensity={0.75} />
+            <directionalLight position={[10, 14, 10]} intensity={1.5} castShadow />
+            <directionalLight position={[-10, -6, -6]} intensity={0.6} />
+            <directionalLight position={[0, -10, 0]} intensity={0.3} />
+
+            <MaleUav3D
               telemetry={telemetry}
               health={health}
               fault={fault}
               activeFaults={activeFaults}
+              viewMode={viewMode}
+              selectedPart={selectedPart}
             />
+
             <Grid
               position={[0, -1.5, 0]}
-              args={[12, 12]}
-              cellSize={0.5}
-              cellThickness={0.6}
+              args={[24, 24]}
+              cellSize={0.6}
+              cellThickness={0.7}
               cellColor="#1e293b"
-              sectionSize={2}
+              sectionSize={2.4}
               sectionThickness={1.2}
               sectionColor="#0ea5e9"
-              fadeDistance={25}
+              fadeDistance={35}
             />
             <OrbitControls enablePan={true} enableZoom={true} enableRotate={true} />
           </Canvas>
 
           {/* Floating Live Telemetry HUD */}
-          <div className="absolute top-4 left-4 bg-aerodark/90 backdrop-blur-md border border-aeroborder p-3 rounded-lg text-xs space-y-2 pointer-events-none shadow-xl">
+          <div className="absolute top-4 left-4 bg-aerodark/90 backdrop-blur-md border border-aeroborder p-3 rounded-lg text-xs space-y-2 pointer-events-none shadow-xl max-w-xs">
             <div className="text-sky-400 font-bold border-b border-aeroborder pb-1 flex justify-between">
-              <span>PHYSICAL TWIN STATUS</span>
-              <span className="text-emerald-400">99.4% SYNC</span>
+              <span>UAV & PROPULSION STATUS</span>
+              <span className="text-emerald-400 font-mono">99.4% SYNC</span>
             </div>
-            <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-slate-300">
+            <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-slate-300 text-[11px]">
               <div>CRANK SPEED: <span className="text-white font-bold">{Math.round(telemetry.rpm)} RPM</span></div>
-              <div>POWER OUTPUT: <span className="text-white font-bold">{telemetry.power.toFixed(1)} kW</span></div>
-              <div>AVG CHT: <span className={telemetry.cht > 165 ? 'text-amber-400 font-bold' : 'text-emerald-400'}>{telemetry.cht}°C</span></div>
-              <div>AVG EGT: <span className="text-white font-bold">{telemetry.egt}°C</span></div>
-              <div>OIL PRESSURE: <span className={telemetry.oil_pressure < 2.5 ? 'text-red-400 font-bold' : 'text-white'}>{telemetry.oil_pressure} bar</span></div>
-              <div>VIBRATION RMS: <span className="text-white font-bold">{telemetry.vibration} mm/s</span></div>
+              <div>POWER: <span className="text-white font-bold">{telemetry.power.toFixed(1)} kW</span></div>
+              <div>CYLINDER CHT: <span className={telemetry.cht > 165 ? 'text-amber-400 font-bold' : 'text-emerald-400'}>{telemetry.cht}°C</span></div>
+              <div>EXHAUST EGT: <span className="text-white font-bold">{telemetry.egt}°C</span></div>
+              <div>OIL PRESS: <span className={telemetry.oil_pressure < 2.5 ? 'text-red-400 font-bold' : 'text-white'}>{telemetry.oil_pressure} bar</span></div>
+              <div>VIBRATION: <span className="text-white font-bold">{telemetry.vibration} mm/s</span></div>
+              <div>PUSHER PROP: <span className="text-sky-300 font-bold">{Math.round(telemetry.rpm / 2.43)} RPM</span></div>
+              <div>AIRSPEED: <span className="text-white font-bold">142 KTAS</span></div>
             </div>
+          </div>
+
+          {/* View Mode Tag Indicator */}
+          <div className="absolute top-4 right-4 bg-aerodark/90 backdrop-blur-md border border-aeroborder px-3 py-1.5 rounded text-[11px] text-sky-400 pointer-events-none font-bold">
+            VIEW: {viewMode === 'FULL_UAV' ? 'TACTICAL AIRFRAME' : (viewMode === 'XRAY_CUTAWAY' ? 'ENGINE CUTAWAY (X-RAY)' : 'ISOLATED POWERPLANT')}
           </div>
 
           {/* Controls Instruction Overlay */}
           <div className="absolute bottom-4 left-4 bg-aerodark/80 backdrop-blur-sm border border-aeroborder px-3 py-1.5 rounded text-[10px] text-slate-400 pointer-events-none">
-            Click + Drag to Orbit • Right-Click to Pan • Scroll Wheel to Zoom
+            Left-Click + Drag to Orbit • Right-Click to Pan • Scroll Wheel to Zoom
           </div>
         </div>
 
@@ -134,23 +171,27 @@ export default function DigitalTwinPage({ onOpenFaultModal }) {
           <div className="space-y-4">
             <div>
               <span className="text-xs font-bold text-slate-200 uppercase tracking-wider block mb-2">
-                COMPONENT INSPECTOR
+                UAV & POWERPLANT INSPECTOR
               </span>
               <div className="grid grid-cols-2 gap-2 text-xs">
                 {[
+                  { id: 'airframe', label: 'Airframe & Wings' },
+                  { id: 'propeller', label: 'Pusher Propeller' },
+                  { id: 'flir_turret', label: 'FLIR EO/IR Turret' },
+                  { id: 'engine_bay', label: 'Engine Bay Nacelle' },
                   { id: 'cylinders', label: 'Cylinders & Pistons' },
                   { id: 'crankshaft', label: 'Crankshaft & Hub' },
-                  { id: 'fuel_injection', label: 'EFI & Injectors' },
+                  { id: 'fuel_injection', label: 'EFI Fuel Rails' },
                   { id: 'lubrication', label: 'Lubrication Sump' },
-                  { id: 'turbocharger', label: 'Turbo Assembly' },
-                  { id: 'sensors', label: 'Sensors & Wiring' }
+                  { id: 'turbocharger', label: 'Turbo & Intercooler' },
+                  { id: 'sensors', label: 'Avionics & Sensors' }
                 ].map((part) => (
                   <button
                     key={part.id}
                     onClick={() => setSelectedPart(part.id)}
                     className={`p-2 rounded border text-left font-semibold transition text-[11px] ${
                       selectedPart === part.id
-                        ? 'bg-sky-950/80 border-sky-500 text-sky-300'
+                        ? 'bg-sky-950/80 border-sky-500 text-sky-300 ring-1 ring-sky-500'
                         : 'bg-aerocard border-aeroborder text-slate-400 hover:text-slate-200'
                     }`}
                   >
@@ -162,10 +203,50 @@ export default function DigitalTwinPage({ onOpenFaultModal }) {
 
             {/* Selected Component Technical Readout */}
             <div className="bg-aerocard border border-aeroborder rounded-lg p-3 space-y-2 text-xs">
-              <div className="font-bold text-sky-400 uppercase flex items-center justify-between">
-                <span>{selectedPart.replace('_', ' ').toUpperCase()} SPECIFICATION</span>
-                <span className="text-[10px] text-slate-400">PHYSICS RO</span>
+              <div className="font-bold text-sky-400 uppercase flex items-center justify-between border-b border-aeroborder/60 pb-1.5">
+                <span>{selectedPart.replace('_', ' ').toUpperCase()} DETAILS</span>
+                <span className="text-[10px] text-emerald-400">VERIFIED</span>
               </div>
+
+              {selectedPart === 'airframe' && (
+                <div className="space-y-1.5 text-slate-300">
+                  <div className="flex justify-between"><span>Airframe Model:</span><span className="font-bold text-white">TAPAS MALE-201 (Rustom-II)</span></div>
+                  <div className="flex justify-between"><span>Wingspan:</span><span className="font-bold text-white">20.6 meters (High Aspect Ratio)</span></div>
+                  <div className="flex justify-between"><span>Fuselage Length:</span><span className="font-bold text-white">9.5 meters</span></div>
+                  <div className="flex justify-between"><span>Max Takeoff Weight:</span><span className="font-bold text-white">1,800 kg (MTOW)</span></div>
+                  <div className="flex justify-between"><span>Payload Capacity:</span><span className="font-bold text-sky-400">350 kg (Sensors + Fuel)</span></div>
+                  <div className="flex justify-between"><span>Operating Ceiling:</span><span className="font-bold text-white">35,000 ft (10,600 m)</span></div>
+                </div>
+              )}
+
+              {selectedPart === 'propeller' && (
+                <div className="space-y-1.5 text-slate-300">
+                  <div className="flex justify-between"><span>Propeller Type:</span><span className="font-bold text-white">3-Blade Constant-Speed Pusher</span></div>
+                  <div className="flex justify-between"><span>Blade Material:</span><span className="font-bold text-white">Carbon-Fiber Composite</span></div>
+                  <div className="flex justify-between"><span>Prop Speed:</span><span className="font-bold text-sky-300">{Math.round(telemetry.rpm / 2.43)} RPM</span></div>
+                  <div className="flex justify-between"><span>Prop Pitch Governor:</span><span className="font-bold text-emerald-400">Hydraulic Dual-Action</span></div>
+                  <div className="flex justify-between"><span>Static Thrust:</span><span className="font-bold text-white">2.85 kN (Takeoff)</span></div>
+                </div>
+              )}
+
+              {selectedPart === 'flir_turret' && (
+                <div className="space-y-1.5 text-slate-300">
+                  <div className="flex justify-between"><span>Payload:</span><span className="font-bold text-white">Stabilized EO/IR Gimbal</span></div>
+                  <div className="flex justify-between"><span>Infrared Sensor:</span><span className="font-bold text-white">MWIR Cooled 1280x1024</span></div>
+                  <div className="flex justify-between"><span>Electro-Optical:</span><span className="font-bold text-white">Continuous Optical Zoom HD</span></div>
+                  <div className="flex justify-between"><span>Laser Rangefinder:</span><span className="font-bold text-emerald-400">20 km Class 1 Eye-Safe</span></div>
+                  <div className="flex justify-between"><span>Azimuth Coverage:</span><span className="font-bold text-white">360° Continuous Rotation</span></div>
+                </div>
+              )}
+
+              {selectedPart === 'engine_bay' && (
+                <div className="space-y-1.5 text-slate-300">
+                  <div className="flex justify-between"><span>Powerplant:</span><span className="font-bold text-white">Rotax 914 / 915 iS Turbo</span></div>
+                  <div className="flex justify-between"><span>Mounting:</span><span className="font-bold text-white">Aft Dorsal Fuselage Nacelle</span></div>
+                  <div className="flex justify-between"><span>Vibration Dampers:</span><span className="font-bold text-emerald-400">Elastomeric Trunnions (4x)</span></div>
+                  <div className="flex justify-between"><span>Fire Suppression:</span><span className="font-bold text-emerald-400">Pneumatic Linear Detector</span></div>
+                </div>
+              )}
 
               {selectedPart === 'cylinders' && (
                 <div className="space-y-1.5 text-slate-300">
@@ -226,7 +307,7 @@ export default function DigitalTwinPage({ onOpenFaultModal }) {
             {/* Subsystem Health Ring Indicator */}
             <div className="bg-aerocard border border-aeroborder rounded-lg p-3 space-y-2">
               <span className="text-[11px] font-bold text-slate-300 uppercase tracking-wider block">
-                TWIN HEALTH STATUS
+                PROPULSION TWIN HEALTH
               </span>
               <div className="flex items-center justify-between text-xs">
                 <span>Overall Propulsion:</span>
@@ -242,7 +323,7 @@ export default function DigitalTwinPage({ onOpenFaultModal }) {
           </div>
 
           <div className="text-[10px] text-slate-500 font-sans border-t border-aeroborder pt-2">
-            Rotax 914/915 iS Turbo MALE UAV Configuration. Reduced-Order Physics Model Synchronized with real-time telemetry pipeline.
+            TAPAS-BH-201 MALE UAV Airframe with Turbocharged Aero Engine. Synchronized with live telemetry pipeline.
           </div>
         </div>
       </div>

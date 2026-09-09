@@ -7,7 +7,7 @@ import React from 'react';
 import { useTelemetryStore } from '../store/telemetryStore';
 import GaugeCard from '../components/GaugeCard';
 import HealthScoreRing from '../components/HealthScoreRing';
-import PistonEngine3D from '../three/PistonEngine3D';
+import MaleUav3D from '../three/MaleUav3D';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import {
@@ -298,22 +298,23 @@ export default function DashboardPage({ onOpenFaultModal }) {
 
           {/* 3D Canvas Box */}
           <div className="h-[370px] bg-aerodark rounded-lg border border-aeroborder relative overflow-hidden flex items-center justify-center">
-            <Canvas camera={{ position: [4.5, 3.5, 4.5], fov: 45 }}>
+            <Canvas camera={{ position: [6.5, 4.5, 6.5], fov: 45 }}>
               <ambientLight intensity={0.6} />
               <directionalLight position={[10, 10, 5]} intensity={1.2} />
               <directionalLight position={[-10, -5, -5]} intensity={0.5} />
-              <PistonEngine3D
+              <MaleUav3D
                 telemetry={telemetry}
                 health={health}
                 fault={fault}
                 activeFaults={activeFaults}
+                viewMode="XRAY_CUTAWAY"
               />
               <OrbitControls enablePan={true} enableZoom={true} enableRotate={true} autoRotate={false} />
             </Canvas>
 
             {/* In-canvas Telemetry Overlay */}
             <div className="absolute top-2 left-2 bg-aeroblack/80 backdrop-blur-sm border border-aeroborder/80 p-2 rounded text-[10px] space-y-1 text-slate-300 pointer-events-none">
-              <div className="text-sky-400 font-bold">ROTAX 914 TWIN STATE</div>
+              <div className="text-sky-400 font-bold">TAPAS MALE-201 AIRFRAME & TWIN</div>
               <div>Crankshaft Speed: <span className="text-white font-bold">{Math.round(telemetry.rpm)} RPM</span></div>
               <div>Thermal Level: <span className={telemetry.cht > 165 ? 'text-amber-400 font-bold' : 'text-emerald-400'}>{telemetry.cht}°C</span></div>
               <div>Mechanical Vib: <span className="text-white font-bold">{telemetry.vibration} mm/s</span></div>
