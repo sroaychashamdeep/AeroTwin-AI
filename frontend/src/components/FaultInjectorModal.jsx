@@ -5,6 +5,7 @@
 import React from 'react';
 import { useTelemetryStore } from '../store/telemetryStore';
 import { X, AlertTriangle, RefreshCw, CheckCircle2, Flame, Droplet, Zap, Wind, Radio } from 'lucide-react';
+import { soundFx } from '../utils/soundFx';
 
 const PREDEFINED_SCENARIOS = [
   {
@@ -79,11 +80,27 @@ export default function FaultInjectorModal({ isOpen, onClose }) {
   if (!isOpen) return null;
 
   const handleSliderChange = (param, value) => {
-    injectFault({ [param]: parseFloat(value) });
+    const floatVal = parseFloat(value);
+    if (floatVal > 0.4) {
+      soundFx.playWarningChime();
+    } else {
+      soundFx.playClick('normal');
+    }
+    injectFault({ [param]: floatVal });
   };
 
   const applyScenario = (scenario) => {
+    if (scenario.id === 'healthy') {
+      soundFx.playSuccess();
+    } else {
+      soundFx.playFaultInjected();
+    }
     injectFault(scenario.faults);
+  };
+
+  const handleReset = () => {
+    soundFx.playSuccess();
+    clearAllFaults();
   };
 
   return (
@@ -102,7 +119,7 @@ export default function FaultInjectorModal({ isOpen, onClose }) {
           </div>
           <div className="flex items-center space-x-3">
             <button
-              onClick={clearAllFaults}
+              onClick={handleReset}
               className="flex items-center space-x-1.5 px-3 py-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs transition border border-slate-700"
             >
               <RefreshCw className="w-3.5 h-3.5" />

@@ -23,6 +23,7 @@ import {
   RotateCw,
   Sparkles
 } from 'lucide-react';
+import { soundFx } from '../utils/soundFx';
 
 export default function DigitalTwinPage({ onOpenFaultModal }) {
   const { telemetry, health, fault, activeFaults } = useTelemetryStore();
@@ -64,7 +65,10 @@ export default function DigitalTwinPage({ onOpenFaultModal }) {
             ].map((mode) => (
               <button
                 key={mode.id}
-                onClick={() => setViewMode(mode.id)}
+                onClick={() => {
+                  soundFx.playClick('toggle');
+                  setViewMode(mode.id);
+                }}
                 className={`px-2.5 py-1 rounded font-bold transition text-[11px] ${
                   viewMode === mode.id
                     ? 'bg-sky-600 text-white shadow'
@@ -82,7 +86,10 @@ export default function DigitalTwinPage({ onOpenFaultModal }) {
             {['iso', 'front', 'top', 'side'].map((view) => (
               <button
                 key={view}
-                onClick={() => setCameraView(view)}
+                onClick={() => {
+                  soundFx.playClick('normal');
+                  setCameraView(view);
+                }}
                 className={`px-2 py-0.5 rounded uppercase font-semibold transition text-[11px] ${
                   cameraView === view
                     ? 'bg-slate-700 text-white'
@@ -95,7 +102,10 @@ export default function DigitalTwinPage({ onOpenFaultModal }) {
           </div>
 
           <button
-            onClick={onOpenFaultModal}
+            onClick={() => {
+              soundFx.playClick('high');
+              onOpenFaultModal();
+            }}
             className="px-3 py-1 rounded bg-red-600 hover:bg-red-500 text-white font-semibold transition flex items-center space-x-1 shadow-md shadow-red-950/40"
           >
             <ShieldAlert className="w-3.5 h-3.5" />
@@ -188,7 +198,10 @@ export default function DigitalTwinPage({ onOpenFaultModal }) {
                 ].map((part) => (
                   <button
                     key={part.id}
-                    onClick={() => setSelectedPart(part.id)}
+                    onClick={() => {
+                      soundFx.playClick('normal');
+                      setSelectedPart(part.id);
+                    }}
                     className={`p-2 rounded border text-left font-semibold transition text-[11px] ${
                       selectedPart === part.id
                         ? 'bg-sky-950/80 border-sky-500 text-sky-300 ring-1 ring-sky-500'

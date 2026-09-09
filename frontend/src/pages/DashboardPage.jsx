@@ -10,6 +10,7 @@ import HealthScoreRing from '../components/HealthScoreRing';
 import MaleUav3D from '../three/MaleUav3D';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
+import { soundFx } from '../utils/soundFx';
 import {
   LineChart,
   Line,
@@ -266,7 +267,10 @@ export default function DashboardPage({ onOpenFaultModal }) {
                 min="20"
                 max="100"
                 value={flightParams.throttle}
-                onChange={(e) => setFlightParams({ throttle: e.target.value })}
+                onChange={(e) => {
+                  soundFx.playClick('normal');
+                  setFlightParams({ throttle: e.target.value });
+                }}
                 className="w-full accent-sky-500 bg-slate-800 h-1.5 rounded cursor-pointer"
               />
               <div className="flex justify-between text-[9px] text-slate-400">

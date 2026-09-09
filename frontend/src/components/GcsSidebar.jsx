@@ -3,7 +3,8 @@
  */
 
 import React from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
+import { soundFx } from '../utils/soundFx';
 import {
   LayoutDashboard,
   Box,
@@ -52,6 +53,7 @@ export default function GcsSidebar() {
             <NavLink
               key={item.path}
               to={item.path}
+              onClick={() => soundFx.playClick('toggle')}
               className={({ isActive }) =>
                 `flex items-center space-x-3 px-3 py-2.5 rounded text-xs font-mono tracking-wide transition ${
                   isActive

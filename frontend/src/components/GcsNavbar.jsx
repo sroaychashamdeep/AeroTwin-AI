@@ -2,14 +2,49 @@
  * AEROTWIN AI - Ground Control Station (GCS) Top Navbar
  */
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTelemetryStore } from '../store/telemetryStore';
-import { Activity, ShieldAlert, Cpu, Radio, Play, Pause, RefreshCw, Zap } from 'lucide-react';
+import { Activity, ShieldAlert, Cpu, Radio, Play, Pause, RefreshCw, Zap, Volume2, VolumeX } from 'lucide-react';
+import { soundFx } from '../utils/soundFx';
 
 export default function GcsNavbar({ onOpenFaultModal }) {
   const { connected, isPaused, togglePause, twinSync, health, anomaly, activeFaults, clearAllFaults } = useTelemetryStore();
 
   const isFaultInjected = Object.values(activeFaults).some(v => v > 0);
+
+  const [isAudioMuted, setIsAudioMuted] = useState(soundFx.isMuted());
+
+  // Listen for faults or anomalies and trigger sound alerts
+  useEffect(() => {
+    if (anomaly.is_anomaly || (health.overall_health < 70)) {
+      soundFx.playEmergencyAlarm();
+    } else if (health.overall_health < 85) {
+      soundFx.playWarningChime();
+    }
+  }, [anomaly.is_anomaly, health.overall_health]);
+
+  const handleAudioToggle = () => {
+    const muted = soundFx.toggleMute();
+    setIsAudioMuted(muted);
+    if (!muted) {
+      soundFx.playClick('high');
+    }
+  };
+
+  const handleClearFaults = () => {
+    soundFx.playSuccess();
+    clearAllFaults();
+  };
+
+  const handleTogglePause = () => {
+    soundFx.playClick('toggle');
+    togglePause();
+  };
+
+  const handleOpenFaultModal = () => {
+    soundFx.playClick('high');
+    onOpenFaultModal();
+  };
 
   return (
     <header className="h-14 bg-aerodark border-b border-aeroborder px-4 flex items-center justify-between select-none z-30 sticky top-0">
@@ -67,11 +102,25 @@ export default function GcsNavbar({ onOpenFaultModal }) {
         </div>
       </div>
 
-      {/* Right Controls: Stream Pause & Fault Injection Launcher */}
-      <div className="flex items-center space-x-3">
+      {/* Right Controls: Stream Pause, Audio Toggle & Fault Injection Launcher */}
+      <div className="flex items-center space-x-2.5">
+        {/* Audio Tactical Sound Toggle */}
+        <button
+          onClick={handleAudioToggle}
+          className={`flex items-center space-x-1.5 px-2.5 py-1 rounded border text-xs font-mono transition ${
+            !isAudioMuted
+              ? 'bg-sky-950/80 border-sky-600 text-sky-300 shadow-md shadow-sky-950/50'
+              : 'bg-aerocard border-aeroborder text-slate-400 hover:text-slate-200'
+          }`}
+          title={isAudioMuted ? 'Turn Sound ON (Tactical Audio & Engine Acoustics)' : 'Mute Tactical Audio'}
+        >
+          {!isAudioMuted ? <Volume2 className="w-3.5 h-3.5 text-sky-400 animate-pulse" /> : <VolumeX className="w-3.5 h-3.5 text-slate-400" />}
+          <span className="text-[11px]">{!isAudioMuted ? 'AUDIO ON' : 'AUDIO OFF'}</span>
+        </button>
+
         {isFaultInjected && (
           <button
-            onClick={clearAllFaults}
+            onClick={handleClearFaults}
             className="flex items-center space-x-1 px-2.5 py-1 rounded bg-red-950/60 border border-red-700 text-red-300 hover:bg-red-900/80 text-xs font-mono transition"
             title="Clear all injected perturbations"
           >
@@ -81,7 +130,7 @@ export default function GcsNavbar({ onOpenFaultModal }) {
         )}
 
         <button
-          onClick={togglePause}
+          onClick={handleTogglePause}
           className={`flex items-center space-x-1.5 px-3 py-1 rounded border text-xs font-mono font-medium transition ${
             isPaused
               ? 'bg-amber-950/50 border-amber-600 text-amber-300 hover:bg-amber-900'
@@ -93,7 +142,7 @@ export default function GcsNavbar({ onOpenFaultModal }) {
         </button>
 
         <button
-          onClick={onOpenFaultModal}
+          onClick={handleOpenFaultModal}
           className="flex items-center space-x-1.5 px-3 py-1 rounded bg-gradient-to-r from-red-600 to-amber-600 hover:from-red-500 hover:to-amber-500 text-white font-mono text-xs font-semibold shadow-lg shadow-red-900/30 transition border border-red-500/50"
         >
           <ShieldAlert className="w-3.5 h-3.5" />

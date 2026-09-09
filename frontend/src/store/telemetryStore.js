@@ -4,6 +4,7 @@
 
 import { create } from 'zustand';
 import { io } from 'socket.io-client';
+import { soundFx } from '../utils/soundFx';
 
 const SOCKET_SERVER_URL = import.meta.env.VITE_WS_URL || window.location.origin;
 
@@ -143,6 +144,15 @@ export const useTelemetryStore = create((set, get) => {
 
       socket.on('telemetry_stream', (frame) => {
         if (get().isPaused) return;
+
+        // Modulate real-time engine acoustics with physical RPM & vibration
+        if (frame.telemetry) {
+          soundFx.updateEngineTelemetry(
+            frame.telemetry.rpm,
+            frame.telemetry.vibration,
+            frame.telemetry.throttle
+          );
+        }
 
         set((state) => {
           const timestamp = new Date().toLocaleTimeString();
