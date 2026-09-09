@@ -19,6 +19,7 @@ import {
   Bot,
   FileSpreadsheet,
   CheckCircle,
+  Camera,
   Settings
 } from 'lucide-react';
 
@@ -36,6 +37,7 @@ const NAV_ITEMS = [
   { path: '/ai-copilot', label: 'AI COPILOT', icon: Bot, highlight: true },
   { path: '/reports', label: 'REPORTS', icon: FileSpreadsheet },
   { path: '/model-validation', label: 'MODEL VALIDATION', icon: CheckCircle },
+  { path: '/inspection', label: 'VISUAL INSPECTION AI', icon: Camera },
   { path: '/settings', label: 'SYSTEM SETTINGS', icon: Settings }
 ];
 

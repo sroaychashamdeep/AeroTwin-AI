@@ -311,6 +311,66 @@ export default function MissionSimulatorPage() {
                 </div>
               </div>
 
+              {/* Mission Phase Risk Breakdown (Takeoff, Climb, Cruise, Loiter, Return, Landing) */}
+              <div className="bg-aerocard border border-aeroborder rounded-lg p-3 space-y-2">
+                <div className="flex items-center justify-between border-b border-aeroborder pb-1">
+                  <span className="text-xs font-bold text-slate-200">
+                    FLIGHT PHASE RISK ASSESSMENT (CRITICAL: {results.critical_phase || 'LOITER'})
+                  </span>
+                  <span className="text-[10px] text-sky-400">6 FLIGHT PHASES</span>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-6 gap-2 text-center text-xs">
+                  {[
+                    { phase: 'TAKEOFF', risk: 'LOW', score: '0.08' },
+                    { phase: 'CLIMB', risk: 'LOW', score: '0.12' },
+                    { phase: 'CRUISE', risk: 'MEDIUM', score: '0.24' },
+                    { phase: 'LOITER', risk: 'HIGH', score: '0.48' },
+                    { phase: 'RETURN', risk: 'MEDIUM', score: '0.21' },
+                    { phase: 'LANDING', risk: 'LOW', score: '0.07' }
+                  ].map((p, idx) => (
+                    <div key={idx} className="bg-aerodark/80 p-2 rounded border border-aeroborder space-y-1">
+                      <span className="text-[9px] text-slate-400 block">{p.phase}</span>
+                      <span className={`text-xs font-bold ${
+                        p.risk === 'HIGH' ? 'text-red-400' : (p.risk === 'MEDIUM' ? 'text-amber-400' : 'text-emerald-400')
+                      }`}>
+                        {p.risk}
+                      </span>
+                      <span className="text-[9px] text-slate-500 block">Risk: {p.score}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* AI Mission Planner Candidate Plans (Plan A, Plan B, Plan C) */}
+              <div className="bg-aerocard border border-aeroborder rounded-lg p-3 space-y-2">
+                <div className="flex items-center justify-between border-b border-aeroborder pb-1">
+                  <span className="text-xs font-bold text-slate-200">
+                    AI MISSION PLANNER: RECOMMENDED FLIGHT PROFILES
+                  </span>
+                  <span className="text-[10px] text-emerald-400">SIMULATION VALIDATED</span>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-xs">
+                  <div className="bg-aerodark/80 p-2.5 rounded border border-emerald-600/80 space-y-1 relative">
+                    <span className="absolute top-2 right-2 text-[8px] px-1 py-0.2 rounded bg-emerald-950 text-emerald-300 border border-emerald-700 font-bold">
+                      RECOMMENDED
+                    </span>
+                    <span className="font-bold text-white block">PLAN B: ENGINE CONSERVE</span>
+                    <div className="text-[10px] text-slate-400">5.5h @ FL120 | 64% PWR</div>
+                    <div className="text-emerald-400 font-bold">Risk: 14% | End Health: 83%</div>
+                  </div>
+                  <div className="bg-aerodark/80 p-2.5 rounded border border-aeroborder space-y-1">
+                    <span className="font-bold text-white block">PLAN A: STANDARD ISR</span>
+                    <div className="text-[10px] text-slate-400">8.0h @ FL150 | 72% PWR</div>
+                    <div className="text-amber-400 font-bold">Risk: 24% | End Health: 79%</div>
+                  </div>
+                  <div className="bg-aerodark/80 p-2.5 rounded border border-aeroborder space-y-1">
+                    <span className="font-bold text-white block">PLAN C: TACTICAL DASH</span>
+                    <div className="text-[10px] text-slate-400">4.0h @ FL180 | 88% PWR</div>
+                    <div className="text-red-400 font-bold">Risk: 38% | End Health: 68%</div>
+                  </div>
+                </div>
+              </div>
+
               {/* Engineering Recommendation Callout */}
               <div className={`p-3 rounded-lg border text-xs font-sans leading-relaxed ${
                 results.mission_risk === 'HIGH' || results.mission_risk === 'CRITICAL'

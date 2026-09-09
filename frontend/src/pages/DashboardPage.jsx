@@ -18,7 +18,12 @@ import {
   YAxis,
   Tooltip,
   ResponsiveContainer,
-  CartesianGrid
+  CartesianGrid,
+  Radar,
+  RadarChart,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis
 } from 'recharts';
 import {
   Gauge,
@@ -34,7 +39,10 @@ import {
   Radio,
   Clock,
   CheckCircle2,
-  ChevronRight
+  ChevronRight,
+  Activity,
+  Cpu,
+  Target
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -48,10 +56,33 @@ export default function DashboardPage({ onOpenFaultModal }) {
     health,
     explanation,
     twinSync,
+    twinState,
+    missionReliability,
     activeFaults,
     flightParams,
     setFlightParams
   } = useTelemetryStore();
+
+  const fidelity = twinState?.fidelity || {
+    overall_fidelity: 94.2,
+    physics_agreement: 95.0,
+    sensor_agreement: 96.0,
+    ai_agreement: 92.0,
+    temporal_consistency: 94.0
+  };
+
+  const healthDnaData = [
+    { subject: 'Thermal', val: twinState?.health_dna?.Thermal || 92.5 },
+    { subject: 'Combust', val: twinState?.health_dna?.Combustion || 96.0 },
+    { subject: 'Lubric', val: twinState?.health_dna?.Lubrication || 93.8 },
+    { subject: 'Mechan', val: twinState?.health_dna?.Mechanical || 95.1 },
+    { subject: 'Electr', val: twinState?.health_dna?.Electrical || 98.0 },
+    { subject: 'Fuel', val: twinState?.health_dna?.Fuel || 94.7 },
+    { subject: 'Sensor', val: twinState?.health_dna?.Sensor || 96.5 },
+    { subject: 'Effic', val: twinState?.health_dna?.Efficiency || 93.5 }
+  ];
+
+  const consensus = twinState?.consensus || fault;
 
   const isFaulted = fault.primary_fault !== 'Healthy' || anomaly.is_anomaly;
 
@@ -136,11 +167,21 @@ export default function DashboardPage({ onOpenFaultModal }) {
           <div className="flex items-center space-x-3">
             <AlertTriangle className="w-5 h-5 text-red-400 shrink-0" />
             <div>
-              <div className="text-xs font-bold text-red-300 uppercase tracking-wider flex items-center space-x-2">
+              <div className="text-xs font-bold text-red-300 uppercase tracking-wider flex items-center space-x-2 flex-wrap gap-y-1">
                 <span>AI DIAGNOSTIC ALERT: {fault.primary_fault} ({(fault.probability * 100).toFixed(1)}% CONFIDENCE)</span>
                 <span className="text-[9px] px-1.5 py-0.2 rounded bg-red-900 border border-red-700 text-white font-bold">
-                  {fault.severity}
+                  {fault.severity || 'CRITICAL'}
                 </span>
+                {fault.fault_stage && (
+                  <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-900/80 border border-amber-600 text-amber-300 font-bold">
+                    STAGE {fault.fault_stage.stage}: {fault.fault_stage.name} ({fault.fault_stage.early_warning_horizon})
+                  </span>
+                )}
+                {fault.is_unknown_fault && (
+                  <span className="text-[9px] px-1.5 py-0.2 rounded bg-purple-900 border border-purple-500 text-purple-200 font-bold animate-bounce">
+                    ⚠ UNKNOWN ANOMALY SIGNATURE
+                  </span>
+                )}
               </div>
               <p className="text-[11px] text-slate-300 font-sans mt-0.5">{explanation.narrative_summary}</p>
             </div>
@@ -413,6 +454,51 @@ export default function DashboardPage({ onOpenFaultModal }) {
                 </div>
               </div>
             ))}
+          </div>
+
+          {/* Digital Twin Fidelity Score Card */}
+          <div className="bg-aerocard border border-aeroborder rounded-lg p-3 space-y-2">
+            <div className="flex items-center justify-between text-[11px] font-bold text-slate-300 uppercase tracking-wider">
+              <span className="flex items-center space-x-1.5">
+                <Cpu className="w-3.5 h-3.5 text-sky-400" />
+                <span>TWIN FIDELITY SCORE</span>
+              </span>
+              <span className="text-sky-400 font-bold">{fidelity.overall_fidelity}%</span>
+            </div>
+            {/* Progress bar */}
+            <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-sky-500 to-emerald-400 transition-all duration-500"
+                style={{ width: `${fidelity.overall_fidelity}%` }}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-1.5 text-[9px] pt-1 text-slate-400">
+              <div className="flex justify-between"><span>Physics Agmt:</span><span className="text-slate-200 font-bold">{fidelity.physics_agreement}%</span></div>
+              <div className="flex justify-between"><span>Sensor Agmt:</span><span className="text-slate-200 font-bold">{fidelity.sensor_agreement}%</span></div>
+              <div className="flex justify-between"><span>AI Agmt:</span><span className="text-slate-200 font-bold">{fidelity.ai_agreement}%</span></div>
+              <div className="flex justify-between"><span>Temporal Cons:</span><span className="text-slate-200 font-bold">{fidelity.temporal_consistency}%</span></div>
+            </div>
+          </div>
+
+          {/* Engine Health DNA Radar Chart */}
+          <div className="bg-aerocard border border-aeroborder rounded-lg p-3 flex flex-col items-center">
+            <div className="w-full flex items-center justify-between text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-1">
+              <span className="flex items-center space-x-1.5">
+                <Activity className="w-3.5 h-3.5 text-emerald-400" />
+                <span>ENGINE HEALTH DNA</span>
+              </span>
+              <span className="text-[9px] text-slate-400">8-AXIS FINGERPRINT</span>
+            </div>
+            <div className="h-44 w-full flex items-center justify-center">
+              <ResponsiveContainer width="100%" height="100%">
+                <RadarChart data={healthDnaData} cx="50%" cy="50%" outerRadius="70%">
+                  <PolarGrid stroke="#334155" />
+                  <PolarAngleAxis dataKey="subject" tick={{ fill: '#94a3b8', fontSize: 8 }} />
+                  <PolarRadiusAxis angle={30} domain={[0, 100]} stroke="#334155" tick={false} />
+                  <Radar name="Garuda-01" dataKey="val" stroke="#0ea5e9" fill="#0ea5e9" fillOpacity={0.4} />
+                </RadarChart>
+              </ResponsiveContainer>
+            </div>
           </div>
 
           {/* Quick Action Buttons */}

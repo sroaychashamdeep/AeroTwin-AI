@@ -130,7 +130,9 @@ class SimulatorTelemetrySource extends TelemetrySource {
           fault: diagnostics.fault,
           health: diagnostics.health,
           explanation: diagnostics.explanation,
-          twin_sync: diagnostics.twin_sync
+          twin_sync: diagnostics.twin_sync,
+          twin_state: diagnostics.twin_state || null,
+          mission_reliability: diagnostics.mission_reliability || null
         };
 
         this.emitTelemetry(payload);

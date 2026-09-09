@@ -101,6 +101,10 @@ export const useTelemetryStore = create((set, get) => {
       last_update_sec_ago: 0.5
     },
 
+    // Master Digital Twin State (Single Source of Truth)
+    twinState: null,
+    missionReliability: null,
+
     sensorDiagnostics: {
       sensor_residuals: {},
       faulty_sensors: [],
@@ -178,6 +182,8 @@ export const useTelemetryStore = create((set, get) => {
             health: frame.health || state.health,
             explanation: frame.explanation || state.explanation,
             twinSync: frame.twin_sync || state.twinSync,
+            twinState: frame.twin_state || state.twinState,
+            missionReliability: frame.mission_reliability || state.missionReliability,
             sensorDiagnostics: frame.sensor_diagnostics || state.sensorDiagnostics,
             activeFaults: frame.faults_active || state.activeFaults,
             history: updatedHistory

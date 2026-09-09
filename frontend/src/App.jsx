@@ -21,6 +21,7 @@ import AiCopilotPage from './pages/AiCopilotPage';
 import ReportsPage from './pages/ReportsPage';
 import ModelValidationPage from './pages/ModelValidationPage';
 import SettingsPage from './pages/SettingsPage';
+import VisualInspectionPage from './pages/VisualInspectionPage';
 
 function DashboardRouteWrapper() {
   const { onOpenFaultModal } = useOutletContext();
@@ -59,6 +60,7 @@ export default function App() {
           <Route path="/ai-copilot" element={<AiCopilotPage />} />
           <Route path="/reports" element={<ReportsPage />} />
           <Route path="/model-validation" element={<ModelValidationPage />} />
+          <Route path="/inspection" element={<VisualInspectionPage />} />
           <Route path="/settings" element={<SettingsPage />} />
         </Route>
 
