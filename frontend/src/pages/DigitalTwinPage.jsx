@@ -21,7 +21,8 @@ import {
   ShieldAlert,
   Plane,
   RotateCw,
-  Sparkles
+  Sparkles,
+  Grid as GridIcon
 } from 'lucide-react';
 import { soundFx } from '../utils/soundFx';
 
@@ -30,6 +31,7 @@ export default function DigitalTwinPage({ onOpenFaultModal }) {
   const [cameraView, setCameraView] = useState('iso');
   const [viewMode, setViewMode] = useState('XRAY_CUTAWAY'); // 'FULL_UAV', 'XRAY_CUTAWAY', 'ENGINE_ONLY'
   const [selectedPart, setSelectedPart] = useState('airframe');
+  const [showTacticalGrid, setShowTacticalGrid] = useState(true);
 
   // Camera preset positions tailored for full UAV airframe and close engine inspection
   const cameraPresets = {
@@ -101,6 +103,23 @@ export default function DigitalTwinPage({ onOpenFaultModal }) {
             ))}
           </div>
 
+          {/* Tactical Grid Toggle Button */}
+          <button
+            onClick={() => {
+              soundFx.playClick('toggle');
+              setShowTacticalGrid(!showTacticalGrid);
+            }}
+            className={`px-2.5 py-1 rounded border text-[11px] font-bold flex items-center space-x-1.5 transition ${
+              showTacticalGrid
+                ? 'bg-sky-950/80 border-sky-600 text-sky-300'
+                : 'bg-aerocard border-aeroborder text-slate-400 hover:text-white'
+            }`}
+            title="Toggle 3D Tactical Reference Grid"
+          >
+            <GridIcon className="w-3.5 h-3.5" />
+            <span>GRID: {showTacticalGrid ? 'ON' : 'OFF'}</span>
+          </button>
+
           <button
             onClick={() => {
               soundFx.playClick('high');
@@ -131,19 +150,9 @@ export default function DigitalTwinPage({ onOpenFaultModal }) {
               activeFaults={activeFaults}
               viewMode={viewMode}
               selectedPart={selectedPart}
+              showGrid={showTacticalGrid}
             />
 
-            <Grid
-              position={[0, -1.5, 0]}
-              args={[24, 24]}
-              cellSize={0.6}
-              cellThickness={0.7}
-              cellColor="#1e293b"
-              sectionSize={2.4}
-              sectionThickness={1.2}
-              sectionColor="#0ea5e9"
-              fadeDistance={35}
-            />
             <OrbitControls enablePan={true} enableZoom={true} enableRotate={true} />
           </Canvas>
 

@@ -5,7 +5,7 @@
 
 import React, { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Float } from '@react-three/drei';
+import { Float, Grid } from '@react-three/drei';
 import * as THREE from 'three';
 import PistonEngine3D from './PistonEngine3D';
 
@@ -15,7 +15,8 @@ export default function MaleUav3D({
   fault,
   activeFaults,
   viewMode = 'XRAY_CUTAWAY', // 'FULL_UAV', 'XRAY_CUTAWAY', 'ENGINE_ONLY'
-  selectedPart = 'all'
+  selectedPart = 'all',
+  showGrid = true
 }) {
   const propRef = useRef();
   const flirRef = useRef();
@@ -328,6 +329,21 @@ export default function MaleUav3D({
         <sphereGeometry args={[0.08, 16, 16]} />
         <meshStandardMaterial color="#06b6d4" emissive="#06b6d4" emissiveIntensity={1.8} />
       </mesh>
+
+      {/* 10. TACTICAL GROUND REFERENCE GRID */}
+      {showGrid && (
+        <Grid
+          position={[0, -1.5, 0]}
+          args={[28, 28]}
+          cellSize={0.7}
+          cellThickness={0.75}
+          cellColor="#1e293b"
+          sectionSize={2.8}
+          sectionThickness={1.25}
+          sectionColor="#0ea5e9"
+          fadeDistance={32}
+        />
+      )}
     </group>
   );
 }
