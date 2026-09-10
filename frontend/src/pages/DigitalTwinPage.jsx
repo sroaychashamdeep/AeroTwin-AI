@@ -1,9 +1,17 @@
 /**
  * AEROTWIN AI - Dedicated 3D Digital Twin Inspection Page (/digital-twin)
  * High-Fidelity MALE UAV Airframe & Turbocharged Engine Twin
+ *
+ * Advanced 3D Digital Twin Suite:
+ * - 4 Visual Shaders: Realistic Livery, X-Ray Cutaway, Thermal FEM Heatmap, CAD Wireframe
+ * - 3 Vision Environments: Daylight, Tactical Night, FLIR Thermal Infrared
+ * - Interactive Exploded View Assembly/Disassembly Slider (0% to 100%)
+ * - Interactive 3D Sensor Hotspots with Floating Telemetry Cards
+ * - Top-Mounted Flight Dynamics Controller (Takeoff, Climb, Cruise, Land, Touchdown)
+ * - 3D WebGL Canvas High-Resolution Snapshot Capture Tool
  */
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Grid } from '@react-three/drei';
 import MaleUav3D from '../three/MaleUav3D';
@@ -23,14 +31,23 @@ import {
   Plane,
   RotateCw,
   Sparkles,
-  Grid as GridIcon
+  Grid as GridIcon,
+  Sun,
+  Moon,
+  Download,
+  Sliders,
+  Maximize2
 } from 'lucide-react';
 import { soundFx } from '../utils/soundFx';
 
 export default function DigitalTwinPage({ onOpenFaultModal }) {
   const { telemetry, health, fault, activeFaults } = useTelemetryStore();
   const [cameraView, setCameraView] = useState('iso');
-  const [viewMode, setViewMode] = useState('XRAY_CUTAWAY'); // 'FULL_UAV', 'XRAY_CUTAWAY', 'ENGINE_ONLY'
+  const [viewMode, setViewMode] = useState('FULL_UAV'); // 'FULL_UAV', 'XRAY_CUTAWAY', 'ENGINE_ONLY'
+  const [renderMode, setRenderMode] = useState('REALISTIC'); // 'REALISTIC', 'XRAY_CUTAWAY', 'THERMAL_HEATMAP', 'WIREFRAME_CAD'
+  const [visionEnv, setVisionEnv] = useState('DAY'); // 'DAY', 'NIGHT', 'FLIR_IR'
+  const [explodedFactor, setExplodedFactor] = useState(0.0);
+  const [showSensors, setShowSensors] = useState(true);
   const [selectedPart, setSelectedPart] = useState('airframe');
   const [showTacticalGrid, setShowTacticalGrid] = useState(true);
   const [flightMode, setFlightMode] = useState('CRUISE');
@@ -48,14 +65,29 @@ export default function DigitalTwinPage({ onOpenFaultModal }) {
     iso: viewMode === 'ENGINE_ONLY' ? [4.5, 3.5, 4.5] : [7.5, 5.0, 8.5],
     front: viewMode === 'ENGINE_ONLY' ? [0, 1.5, 6.0] : [0, 2.0, 11.0],
     top: viewMode === 'ENGINE_ONLY' ? [0, 6.5, 0.1] : [0, 13.0, 0.1],
-    side: viewMode === 'ENGINE_ONLY' ? [6.0, 1.0, 0] : [11.0, 2.0, 0]
+    side: viewMode === 'ENGINE_ONLY' ? [6.0, 1.0, 0] : [11.0, 2.0, 0],
+    chase: [0, 3.5, -9.5],
+    flir: [0, -4.5, 5.5]
   };
 
   const isFaulted = fault.primary_fault !== 'Healthy';
 
+  // High-Resolution 3D Canvas Snapshot Tool
+  const handleTakeSnapshot = () => {
+    soundFx.playClick('high');
+    const canvas = document.querySelector('canvas');
+    if (canvas) {
+      const dataUrl = canvas.toDataURL('image/png');
+      const link = document.createElement('a');
+      link.download = `AeroTwin_DigitalTwin_${new Date().toISOString().replace(/[:.]/g, '-')}.png`;
+      link.href = dataUrl;
+      link.click();
+    }
+  };
+
   return (
     <div className="h-[calc(100vh-3.5rem)] flex flex-col font-mono relative overflow-hidden bg-aeroblack">
-      {/* Sub-header Toolbar */}
+      {/* 1. Primary Sub-header Toolbar */}
       <div className="h-12 bg-aerodark border-b border-aeroborder px-4 flex flex-wrap items-center justify-between z-10 shrink-0 gap-2">
         <div className="flex items-center space-x-3">
           <Plane className="w-5 h-5 text-sky-400" />
@@ -67,8 +99,8 @@ export default function DigitalTwinPage({ onOpenFaultModal }) {
           </span>
         </div>
 
-        <div className="flex items-center space-x-3 text-xs">
-          {/* View Mode Switcher: Full UAV / Engine Cutaway / Isolated Engine */}
+        <div className="flex items-center space-x-2 text-xs">
+          {/* View Mode Switcher */}
           <div className="flex items-center space-x-1 bg-aerocard p-1 rounded border border-aeroborder">
             {[
               { id: 'FULL_UAV', label: 'FULL AIRFRAME' },
@@ -80,6 +112,8 @@ export default function DigitalTwinPage({ onOpenFaultModal }) {
                 onClick={() => {
                   soundFx.playClick('toggle');
                   setViewMode(mode.id);
+                  if (mode.id === 'XRAY_CUTAWAY') setRenderMode('XRAY_CUTAWAY');
+                  if (mode.id === 'FULL_UAV' && renderMode === 'XRAY_CUTAWAY') setRenderMode('REALISTIC');
                 }}
                 className={`px-2.5 py-1 rounded font-bold transition text-[11px] ${
                   viewMode === mode.id
@@ -95,7 +129,7 @@ export default function DigitalTwinPage({ onOpenFaultModal }) {
           {/* Camera View Switcher */}
           <div className="hidden lg:flex items-center space-x-1 bg-aerocard p-1 rounded border border-aeroborder">
             <Camera className="w-3.5 h-3.5 text-slate-400 ml-1 mr-1" />
-            {['iso', 'front', 'top', 'side'].map((view) => (
+            {['iso', 'front', 'top', 'side', 'chase', 'flir'].map((view) => (
               <button
                 key={view}
                 onClick={() => {
@@ -113,23 +147,7 @@ export default function DigitalTwinPage({ onOpenFaultModal }) {
             ))}
           </div>
 
-          {/* Tactical Grid Toggle Button */}
-          <button
-            onClick={() => {
-              soundFx.playClick('toggle');
-              setShowTacticalGrid(!showTacticalGrid);
-            }}
-            className={`px-2.5 py-1 rounded border text-[11px] font-bold flex items-center space-x-1.5 transition ${
-              showTacticalGrid
-                ? 'bg-sky-950/80 border-sky-600 text-sky-300'
-                : 'bg-aerocard border-aeroborder text-slate-400 hover:text-white'
-            }`}
-            title="Toggle 3D Tactical Reference Grid"
-          >
-            <GridIcon className="w-3.5 h-3.5" />
-            <span>GRID: {showTacticalGrid ? 'ON' : 'OFF'}</span>
-          </button>
-
+          {/* Fault Injection Shortcut */}
           <button
             onClick={() => {
               soundFx.playClick('high');
@@ -143,7 +161,144 @@ export default function DigitalTwinPage({ onOpenFaultModal }) {
         </div>
       </div>
 
-      {/* Main Canvas & Component Inspection Layout */}
+      {/* 2. Secondary Advanced Digital Twin Controls Toolbar */}
+      <div className="bg-aerodark/80 border-b border-aeroborder px-4 py-1.5 flex flex-wrap items-center justify-between text-xs gap-3 z-10 shrink-0">
+        {/* Left: Render Mode Shaders */}
+        <div className="flex items-center space-x-2 flex-wrap gap-y-1">
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+            SHADER MODE:
+          </span>
+          <div className="flex items-center space-x-1 bg-aerocard p-0.5 rounded border border-aeroborder">
+            {[
+              { id: 'REALISTIC', label: 'REALISTIC' },
+              { id: 'XRAY_CUTAWAY', label: 'X-RAY CUTAWAY' },
+              { id: 'THERMAL_HEATMAP', label: 'THERMAL (FEM)' },
+              { id: 'WIREFRAME_CAD', label: 'CAD WIREFRAME' }
+            ].map((rm) => (
+              <button
+                key={rm.id}
+                onClick={() => {
+                  soundFx.playClick('toggle');
+                  setRenderMode(rm.id);
+                }}
+                className={`px-2 py-0.5 rounded text-[10px] font-bold transition ${
+                  renderMode === rm.id
+                    ? 'bg-sky-600 text-white'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                {rm.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Vision Environment */}
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-2 hidden sm:inline-block">
+            VISION:
+          </span>
+          <div className="flex items-center space-x-1 bg-aerocard p-0.5 rounded border border-aeroborder">
+            {[
+              { id: 'DAY', label: 'DAY', icon: Sun },
+              { id: 'NIGHT', label: 'NIGHT', icon: Moon },
+              { id: 'FLIR_IR', label: 'FLIR IR', icon: Flame }
+            ].map((env) => {
+              const Icon = env.icon;
+              return (
+                <button
+                  key={env.id}
+                  onClick={() => {
+                    soundFx.playClick('normal');
+                    setVisionEnv(env.id);
+                  }}
+                  className={`px-2 py-0.5 rounded text-[10px] font-bold transition flex items-center space-x-1 ${
+                    visionEnv === env.id
+                      ? 'bg-amber-600 text-white'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  <Icon className="w-3 h-3" />
+                  <span>{env.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Right: Exploded Assembly Slider, Sensor Hotspots, and Snapshot Button */}
+        <div className="flex items-center space-x-3 flex-wrap gap-y-1">
+          {/* Exploded View Assembly Slider */}
+          <div className="flex items-center space-x-2 bg-aerocard px-2.5 py-1 rounded border border-aeroborder">
+            <Sliders className="w-3.5 h-3.5 text-sky-400" />
+            <span className="text-[10px] text-slate-300 font-bold whitespace-nowrap">
+              EXPLODED: {Math.round(explodedFactor * 100)}%
+            </span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={explodedFactor}
+              onChange={(e) => setExplodedFactor(parseFloat(e.target.value))}
+              className="w-20 accent-sky-500 bg-slate-800 h-1.5 rounded cursor-pointer"
+              title="Slide to dynamically disassemble airframe and engine modules"
+            />
+            {explodedFactor > 0 && (
+              <button
+                onClick={() => setExplodedFactor(0)}
+                className="text-[9px] text-slate-400 hover:text-white uppercase font-bold"
+                title="Reset to fully assembled view"
+              >
+                RESET
+              </button>
+            )}
+          </div>
+
+          {/* Sensor Pins Toggle Button */}
+          <button
+            onClick={() => {
+              soundFx.playClick('toggle');
+              setShowSensors(!showSensors);
+            }}
+            className={`px-2.5 py-1 rounded border text-[10px] font-bold transition flex items-center space-x-1 ${
+              showSensors
+                ? 'bg-emerald-950/80 border-emerald-600 text-emerald-300'
+                : 'bg-aerocard border-aeroborder text-slate-400 hover:text-white'
+            }`}
+            title="Toggle 3D Interactive Telemetry Sensor Pins"
+          >
+            <span>PINS: {showSensors ? 'ON' : 'OFF'}</span>
+          </button>
+
+          {/* Tactical Grid Toggle */}
+          <button
+            onClick={() => {
+              soundFx.playClick('toggle');
+              setShowTacticalGrid(!showTacticalGrid);
+            }}
+            className={`px-2.5 py-1 rounded border text-[10px] font-bold flex items-center space-x-1 transition ${
+              showTacticalGrid
+                ? 'bg-sky-950/80 border-sky-600 text-sky-300'
+                : 'bg-aerocard border-aeroborder text-slate-400 hover:text-white'
+            }`}
+            title="Toggle 3D Tactical Reference Grid"
+          >
+            <GridIcon className="w-3 h-3" />
+            <span>GRID: {showTacticalGrid ? 'ON' : 'OFF'}</span>
+          </button>
+
+          {/* High-Resolution Snapshot Capture Button */}
+          <button
+            onClick={handleTakeSnapshot}
+            className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-white font-bold border border-slate-700 text-[10px] flex items-center space-x-1 transition shadow"
+            title="Download high-resolution PNG snapshot of the 3D Twin"
+          >
+            <Download className="w-3 h-3 text-sky-400" />
+            <span>SNAPSHOT</span>
+          </button>
+        </div>
+      </div>
+
+      {/* 3. Main Canvas & Component Inspection Layout */}
       <div className="flex-1 flex relative overflow-hidden">
         {/* 3D WebGL Canvas */}
         <div className="flex-1 h-full relative">
@@ -156,11 +311,30 @@ export default function DigitalTwinPage({ onOpenFaultModal }) {
             />
           </div>
 
-          <Canvas camera={{ position: cameraPresets[cameraView], fov: 42 }}>
-            <ambientLight intensity={0.75} />
-            <directionalLight position={[10, 14, 10]} intensity={1.5} castShadow />
-            <directionalLight position={[-10, -6, -6]} intensity={0.6} />
-            <directionalLight position={[0, -10, 0]} intensity={0.3} />
+          <Canvas
+            camera={{ position: cameraPresets[cameraView] || [7.5, 5.0, 8.5], fov: 42 }}
+            gl={{ preserveDrawingBuffer: true }}
+          >
+            {/* Dynamic Lighting matching Vision Environment */}
+            {visionEnv === 'NIGHT' ? (
+              <>
+                <ambientLight intensity={0.15} />
+                <directionalLight position={[10, 14, 10]} intensity={0.35} color="#38bdf8" />
+                <pointLight position={[0, 4, 0]} intensity={2.0} color="#0284c7" />
+              </>
+            ) : visionEnv === 'FLIR_IR' ? (
+              <>
+                <ambientLight intensity={0.35} color="#a1a1aa" />
+                <directionalLight position={[10, 14, 10]} intensity={0.8} color="#e4e4e7" />
+              </>
+            ) : (
+              <>
+                <ambientLight intensity={0.75} />
+                <directionalLight position={[10, 14, 10]} intensity={1.5} castShadow />
+                <directionalLight position={[-10, -6, -6]} intensity={0.6} />
+                <directionalLight position={[0, -10, 0]} intensity={0.3} />
+              </>
+            )}
 
             <MaleUav3D
               telemetry={telemetry}
@@ -168,7 +342,12 @@ export default function DigitalTwinPage({ onOpenFaultModal }) {
               fault={fault}
               activeFaults={activeFaults}
               viewMode={viewMode}
+              renderMode={renderMode}
+              visionEnvironment={visionEnv}
+              explodedFactor={explodedFactor}
+              showSensors={showSensors}
               selectedPart={selectedPart}
+              onSelectPart={setSelectedPart}
               showGrid={showTacticalGrid}
               flightMode={flightMode}
               onFlightTelemetryUpdate={setFlightTelemetry}
@@ -195,14 +374,14 @@ export default function DigitalTwinPage({ onOpenFaultModal }) {
             </div>
           </div>
 
-          {/* View Mode Tag Indicator */}
+          {/* View & Shader Tag Indicator */}
           <div className="absolute top-20 right-4 bg-aerodark/90 backdrop-blur-md border border-aeroborder px-3 py-1.5 rounded text-[11px] text-sky-400 pointer-events-none font-bold">
-            VIEW: {viewMode === 'FULL_UAV' ? 'TACTICAL AIRFRAME' : (viewMode === 'XRAY_CUTAWAY' ? 'ENGINE CUTAWAY (X-RAY)' : 'ISOLATED POWERPLANT')}
+            SHADER: {renderMode.replace('_', ' ')} • ENV: {visionEnv}
           </div>
 
           {/* Controls Instruction Overlay */}
           <div className="absolute bottom-4 left-4 bg-aerodark/80 backdrop-blur-sm border border-aeroborder px-3 py-1.5 rounded text-[10px] text-slate-400 pointer-events-none">
-            Left-Click + Drag to Orbit • Right-Click to Pan • Scroll Wheel to Zoom
+            Click Sensor Pins for Live Holographic Telemetry • Orbit: Left-Click • Pan: Right-Click • Zoom: Scroll
           </div>
         </div>
 
@@ -353,20 +532,21 @@ export default function DigitalTwinPage({ onOpenFaultModal }) {
                 PROPULSION TWIN HEALTH
               </span>
               <div className="flex items-center justify-between text-xs">
-                <span>Overall Propulsion:</span>
-                <span className="font-bold text-emerald-400">{health.overall_health}%</span>
-              </div>
-              <div className="flex items-center justify-between text-xs">
-                <span>Anomaly Risk:</span>
-                <span className={fault.severity === 'CRITICAL' ? 'text-red-400 font-bold' : 'text-slate-300 font-bold'}>
-                  {fault.primary_fault}
-                </span>
+                <div>
+                  <div className="text-xl font-bold text-emerald-400">{health.overall_health.toFixed(1)}%</div>
+                  <div className="text-[10px] text-slate-400">NOMINAL HEALTH</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-slate-200 font-bold">{health.rul_hours} hrs</div>
+                  <div className="text-[10px] text-sky-400">ESTIMATED RUL</div>
+                </div>
               </div>
             </div>
           </div>
 
-          <div className="text-[10px] text-slate-500 font-sans border-t border-aeroborder pt-2">
-            TAPAS-BH-201 MALE UAV Airframe with Turbocharged Aero Engine. Synchronized with live telemetry pipeline.
+          <div className="border-t border-aeroborder/80 pt-3 flex items-center justify-between text-[11px]">
+            <span className="text-slate-400">FADEC NODE:</span>
+            <span className="text-emerald-400 font-bold">ONLINE (1000ms SYNC)</span>
           </div>
         </div>
       </div>
