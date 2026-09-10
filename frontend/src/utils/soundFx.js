@@ -385,6 +385,121 @@ class SoundSystem {
       // ignore
     }
   }
+
+  /**
+   * Play Aerodynamic Takeoff Spool-up & Thrust Roar
+   */
+  playTakeoffThrust() {
+    if (this.muted) return;
+    this.initContext();
+    if (!this.ctx) return;
+
+    try {
+      const now = this.ctx.currentTime;
+      // Spool-up rising whoosh
+      const osc = this.ctx.createOscillator();
+      const filter = this.ctx.createBiquadFilter();
+      const gain = this.ctx.createGain();
+
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(80, now);
+      osc.frequency.exponentialRampToValueAtTime(320, now + 1.8);
+
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(160, now);
+      filter.frequency.exponentialRampToValueAtTime(1400, now + 1.8);
+
+      gain.gain.setValueAtTime(0.01, now);
+      gain.gain.linearRampToValueAtTime(this.volume * 0.38, now + 0.9);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 2.2);
+
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(this.ctx.destination);
+
+      osc.start(now);
+      osc.stop(now + 2.3);
+    } catch (err) {
+      // ignore
+    }
+  }
+
+  /**
+   * Play Realistic Runway Touchdown Tire Chirp & Screech
+   */
+  playTouchdownScreech() {
+    if (this.muted) return;
+    this.initContext();
+    if (!this.ctx) return;
+
+    try {
+      const now = this.ctx.currentTime;
+      // High rubber screech burst
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(2400, now);
+      osc.frequency.exponentialRampToValueAtTime(1100, now + 0.12);
+      osc.frequency.exponentialRampToValueAtTime(600, now + 0.28);
+
+      gain.gain.setValueAtTime(this.volume * 0.42, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.32);
+
+      // Mechanical gear compression thud
+      const thud = this.ctx.createOscillator();
+      const thudGain = this.ctx.createGain();
+      thud.type = 'sine';
+      thud.frequency.setValueAtTime(120, now);
+      thud.frequency.exponentialRampToValueAtTime(30, now + 0.18);
+      thudGain.gain.setValueAtTime(this.volume * 0.5, now);
+      thudGain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+
+      thud.connect(thudGain);
+      thudGain.connect(this.ctx.destination);
+      thud.start(now);
+      thud.stop(now + 0.22);
+    } catch (err) {
+      // ignore
+    }
+  }
+
+  /**
+   * Play Hydraulic Landing Gear Actuator Hum
+   */
+  playGearActuator() {
+    if (this.muted) return;
+    this.initContext();
+    if (!this.ctx) return;
+
+    try {
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(140, now);
+      osc.frequency.linearRampToValueAtTime(180, now + 0.6);
+
+      const filter = this.ctx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(400, now);
+
+      gain.gain.setValueAtTime(this.volume * 0.18, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.7);
+
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.75);
+    } catch (err) {
+      // ignore
+    }
+  }
 }
 
 // Global Singleton Instance

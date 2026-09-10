@@ -3,11 +3,12 @@
  * Ground Control Station Tactical Propulsion Health & Digital Twin Monitor
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useTelemetryStore } from '../store/telemetryStore';
 import GaugeCard from '../components/GaugeCard';
 import HealthScoreRing from '../components/HealthScoreRing';
 import MaleUav3D from '../three/MaleUav3D';
+import FlightDynamicsBar from '../components/FlightDynamicsBar';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import { soundFx } from '../utils/soundFx';
@@ -62,6 +63,16 @@ export default function DashboardPage({ onOpenFaultModal }) {
     flightParams,
     setFlightParams
   } = useTelemetryStore();
+
+  const [flightMode, setFlightMode] = useState('CRUISE');
+  const [flightTelemetry, setFlightTelemetry] = useState({
+    phase: 'CRUISE',
+    phaseLabel: 'AIRBORNE CRUISE',
+    altitudeM: 1200,
+    airspeedKts: 142,
+    pitchDeg: 0.8,
+    gearState: 'RETRACTED'
+  });
 
   const fidelity = twinState?.fidelity || {
     overall_fidelity: 94.2,
@@ -341,6 +352,14 @@ export default function DashboardPage({ onOpenFaultModal }) {
             </button>
           </div>
 
+          {/* Top Flight Dynamics & Takeoff / Landing Control Bar */}
+          <FlightDynamicsBar
+            flightMode={flightMode}
+            onSetFlightMode={setFlightMode}
+            flightTelemetry={flightTelemetry}
+            compact={true}
+          />
+
           {/* 3D Canvas Box */}
           <div className="h-[370px] bg-aerodark rounded-lg border border-aeroborder relative overflow-hidden flex items-center justify-center">
             <Canvas camera={{ position: [6.5, 4.5, 6.5], fov: 45 }}>
@@ -353,6 +372,8 @@ export default function DashboardPage({ onOpenFaultModal }) {
                 fault={fault}
                 activeFaults={activeFaults}
                 viewMode="XRAY_CUTAWAY"
+                flightMode={flightMode}
+                onFlightTelemetryUpdate={setFlightTelemetry}
               />
               <OrbitControls enablePan={true} enableZoom={true} enableRotate={true} autoRotate={false} />
             </Canvas>

@@ -7,6 +7,7 @@ import React, { useState } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Grid } from '@react-three/drei';
 import MaleUav3D from '../three/MaleUav3D';
+import FlightDynamicsBar from '../components/FlightDynamicsBar';
 import { useTelemetryStore } from '../store/telemetryStore';
 import {
   Box,
@@ -32,6 +33,15 @@ export default function DigitalTwinPage({ onOpenFaultModal }) {
   const [viewMode, setViewMode] = useState('XRAY_CUTAWAY'); // 'FULL_UAV', 'XRAY_CUTAWAY', 'ENGINE_ONLY'
   const [selectedPart, setSelectedPart] = useState('airframe');
   const [showTacticalGrid, setShowTacticalGrid] = useState(true);
+  const [flightMode, setFlightMode] = useState('CRUISE');
+  const [flightTelemetry, setFlightTelemetry] = useState({
+    phase: 'CRUISE',
+    phaseLabel: 'AIRBORNE CRUISE (FL120)',
+    altitudeM: 1200,
+    airspeedKts: 142,
+    pitchDeg: 0.8,
+    gearState: 'RETRACTED'
+  });
 
   // Camera preset positions tailored for full UAV airframe and close engine inspection
   const cameraPresets = {
@@ -137,6 +147,15 @@ export default function DigitalTwinPage({ onOpenFaultModal }) {
       <div className="flex-1 flex relative overflow-hidden">
         {/* 3D WebGL Canvas */}
         <div className="flex-1 h-full relative">
+          {/* Top Flight Dynamics & Takeoff / Landing Controller */}
+          <div className="absolute top-3 left-4 right-4 z-20">
+            <FlightDynamicsBar
+              flightMode={flightMode}
+              onSetFlightMode={setFlightMode}
+              flightTelemetry={flightTelemetry}
+            />
+          </div>
+
           <Canvas camera={{ position: cameraPresets[cameraView], fov: 42 }}>
             <ambientLight intensity={0.75} />
             <directionalLight position={[10, 14, 10]} intensity={1.5} castShadow />
@@ -151,13 +170,15 @@ export default function DigitalTwinPage({ onOpenFaultModal }) {
               viewMode={viewMode}
               selectedPart={selectedPart}
               showGrid={showTacticalGrid}
+              flightMode={flightMode}
+              onFlightTelemetryUpdate={setFlightTelemetry}
             />
 
             <OrbitControls enablePan={true} enableZoom={true} enableRotate={true} />
           </Canvas>
 
           {/* Floating Live Telemetry HUD */}
-          <div className="absolute top-4 left-4 bg-aerodark/90 backdrop-blur-md border border-aeroborder p-3 rounded-lg text-xs space-y-2 pointer-events-none shadow-xl max-w-xs">
+          <div className="absolute top-20 left-4 bg-aerodark/90 backdrop-blur-md border border-aeroborder p-3 rounded-lg text-xs space-y-2 pointer-events-none shadow-xl max-w-xs">
             <div className="text-sky-400 font-bold border-b border-aeroborder pb-1 flex justify-between">
               <span>UAV & PROPULSION STATUS</span>
               <span className="text-emerald-400 font-mono">99.4% SYNC</span>
@@ -175,7 +196,7 @@ export default function DigitalTwinPage({ onOpenFaultModal }) {
           </div>
 
           {/* View Mode Tag Indicator */}
-          <div className="absolute top-4 right-4 bg-aerodark/90 backdrop-blur-md border border-aeroborder px-3 py-1.5 rounded text-[11px] text-sky-400 pointer-events-none font-bold">
+          <div className="absolute top-20 right-4 bg-aerodark/90 backdrop-blur-md border border-aeroborder px-3 py-1.5 rounded text-[11px] text-sky-400 pointer-events-none font-bold">
             VIEW: {viewMode === 'FULL_UAV' ? 'TACTICAL AIRFRAME' : (viewMode === 'XRAY_CUTAWAY' ? 'ENGINE CUTAWAY (X-RAY)' : 'ISOLATED POWERPLANT')}
           </div>
 
