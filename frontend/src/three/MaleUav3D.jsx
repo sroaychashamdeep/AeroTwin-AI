@@ -153,10 +153,10 @@ export default function MaleUav3D({
   const gearExtensionRef = useRef(flightMode === 'GROUND' ? 1.0 : 0.0);
   const lastReportTimeRef = useRef(0);
 
-  const rpm = telemetry?.rpm || 4800;
+  const rpm = telemetry?.rpm !== undefined ? telemetry.rpm : 4800;
   const cht = telemetry?.cht || 142.4;
   const egt = telemetry?.egt || 795.0;
-  const oilPressure = telemetry?.oil_pressure || 4.2;
+  const oilPressure = telemetry?.oil_pressure !== undefined ? telemetry.oil_pressure : 4.2;
 
   // Determine effective rendering parameters based on renderMode & visionEnvironment
   const isCutaway = renderMode === 'XRAY_CUTAWAY' || viewMode === 'XRAY_CUTAWAY';
@@ -200,11 +200,13 @@ export default function MaleUav3D({
   useFrame((state, delta) => {
     // 1. Propeller spinning synchronized with real engine RPM
     if (propRef.current) {
-      let speedMult = 1.5;
-      if (currentModeRef.current === 'TAKEOFF') speedMult = 2.2;
-      if (currentModeRef.current === 'GROUND') speedMult = 0.5;
-      const propSpeed = (rpm / 60) * Math.PI * speedMult * delta;
-      propRef.current.rotation.z += propSpeed;
+      if (rpm > 0) {
+        let speedMult = 1.5;
+        if (currentModeRef.current === 'TAKEOFF') speedMult = 2.2;
+        if (currentModeRef.current === 'GROUND') speedMult = 0.5;
+        const propSpeed = (rpm / 60) * Math.PI * speedMult * delta;
+        propRef.current.rotation.z += propSpeed;
+      }
     }
 
     // 2. FLIR turret gentle surveillance pan
@@ -466,11 +468,16 @@ export default function MaleUav3D({
 
     // 9. Pusher Propeller Slipstream & Thrust Animation
     if (slipstreamRef.current) {
-      slipstreamRef.current.scale.set(
-        slipstreamScale,
-        slipstreamScale,
-        slipstreamScale * (1 + Math.sin(state.clock.elapsedTime * 18) * 0.1)
-      );
+      if (rpm > 400) {
+        slipstreamRef.current.visible = true;
+        slipstreamRef.current.scale.set(
+          slipstreamScale,
+          slipstreamScale,
+          slipstreamScale * (1 + Math.sin(state.clock.elapsedTime * 18) * 0.1)
+        );
+      } else {
+        slipstreamRef.current.visible = false;
+      }
     }
 
     // 10. Touchdown Smoke Puff Particle Burst

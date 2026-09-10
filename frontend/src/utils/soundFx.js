@@ -500,6 +500,145 @@ class SoundSystem {
       // ignore
     }
   }
+
+  /**
+   * Play Electric Starter Motor Cranking & Cylinder Compression Chugs
+   */
+  playStarterCrank() {
+    if (this.muted) return;
+    this.initContext();
+    if (!this.ctx) return;
+
+    try {
+      const now = this.ctx.currentTime;
+      // High-pitched starter motor whine
+      const starter = this.ctx.createOscillator();
+      const starterGain = this.ctx.createGain();
+      starter.type = 'sawtooth';
+      starter.frequency.setValueAtTime(320, now);
+      starter.frequency.linearRampToValueAtTime(420, now + 1.2);
+
+      const filter = this.ctx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(650, now);
+
+      starterGain.gain.setValueAtTime(this.volume * 0.22, now);
+      starterGain.gain.exponentialRampToValueAtTime(0.001, now + 1.4);
+
+      starter.connect(filter);
+      filter.connect(starterGain);
+      starterGain.connect(this.ctx.destination);
+      starter.start(now);
+      starter.stop(now + 1.45);
+
+      // Periodic compression thumps (4 piston chugs)
+      for (let i = 0; i < 4; i++) {
+        const thump = this.ctx.createOscillator();
+        const thumpGain = this.ctx.createGain();
+        thump.type = 'triangle';
+        const tTime = now + i * 0.28;
+        thump.frequency.setValueAtTime(75, tTime);
+        thump.frequency.exponentialRampToValueAtTime(25, tTime + 0.12);
+
+        thumpGain.gain.setValueAtTime(this.volume * 0.35, tTime);
+        thumpGain.gain.exponentialRampToValueAtTime(0.001, tTime + 0.15);
+
+        thump.connect(thumpGain);
+        thumpGain.connect(this.ctx.destination);
+        thump.start(tTime);
+        thump.stop(tTime + 0.16);
+      }
+    } catch (err) {
+      // ignore
+    }
+  }
+
+  /**
+   * Play Engine Ignition Combustion Catch & Throttle Surge
+   */
+  playEngineIgnition() {
+    if (this.muted) return;
+    this.initContext();
+    if (!this.ctx) return;
+
+    try {
+      const now = this.ctx.currentTime;
+      // Combustion surge roar
+      const roar = this.ctx.createOscillator();
+      const roarGain = this.ctx.createGain();
+      roar.type = 'sawtooth';
+      roar.frequency.setValueAtTime(45, now);
+      roar.frequency.exponentialRampToValueAtTime(140, now + 0.5);
+      roar.frequency.exponentialRampToValueAtTime(95, now + 1.2);
+
+      const filter = this.ctx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(220, now);
+      filter.frequency.exponentialRampToValueAtTime(680, now + 0.4);
+      filter.frequency.exponentialRampToValueAtTime(350, now + 1.2);
+
+      roarGain.gain.setValueAtTime(0.01, now);
+      roarGain.gain.linearRampToValueAtTime(this.volume * 0.45, now + 0.2);
+      roarGain.gain.exponentialRampToValueAtTime(0.001, now + 1.4);
+
+      roar.connect(filter);
+      filter.connect(roarGain);
+      roarGain.connect(this.ctx.destination);
+      roar.start(now);
+      roar.stop(now + 1.45);
+    } catch (err) {
+      // ignore
+    }
+  }
+
+  /**
+   * Play Engine Magneto Cut & Mechanical Shutdown Deceleration
+   */
+  playEngineShutdown() {
+    if (this.muted) return;
+    this.initContext();
+    if (!this.ctx) return;
+
+    try {
+      const now = this.ctx.currentTime;
+      // Magneto switch click
+      const click = this.ctx.createOscillator();
+      const clickGain = this.ctx.createGain();
+      click.type = 'square';
+      click.frequency.setValueAtTime(800, now);
+      click.frequency.exponentialRampToValueAtTime(200, now + 0.05);
+      clickGain.gain.setValueAtTime(this.volume * 0.3, now);
+      clickGain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+
+      click.connect(clickGain);
+      clickGain.connect(this.ctx.destination);
+      click.start(now);
+      click.stop(now + 0.07);
+
+      // Decelerating engine rumble
+      const spool = this.ctx.createOscillator();
+      const spoolGain = this.ctx.createGain();
+      spool.type = 'sawtooth';
+      spool.frequency.setValueAtTime(110, now + 0.05);
+      spool.frequency.exponentialRampToValueAtTime(18, now + 1.6);
+
+      const filter = this.ctx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(320, now + 0.05);
+      filter.frequency.exponentialRampToValueAtTime(60, now + 1.6);
+
+      spoolGain.gain.setValueAtTime(this.volume * 0.35, now + 0.05);
+      spoolGain.gain.exponentialRampToValueAtTime(0.001, now + 1.7);
+
+      spool.connect(filter);
+      filter.connect(spoolGain);
+      spoolGain.connect(this.ctx.destination);
+      spool.start(now + 0.05);
+      spool.stop(now + 1.75);
+    } catch (err) {
+      // ignore
+    }
+  }
 }
 
 // Global Singleton Instance

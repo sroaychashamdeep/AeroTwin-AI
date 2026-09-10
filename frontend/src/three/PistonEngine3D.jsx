@@ -98,10 +98,11 @@ export default function PistonEngine3D({ telemetry, health, fault, activeFaults 
   const turboRef = useRef();
   const angleRef = useRef(0);
 
-  const rpm = telemetry?.rpm || 4800;
+  const rpm = telemetry?.rpm !== undefined ? telemetry.rpm : 4800;
   const cht = telemetry?.cht || 142;
   const egt = telemetry?.egt || 795;
-  const oilP = telemetry?.oil_pressure || 4.2;
+  const oilP = telemetry?.oil_pressure !== undefined ? telemetry.oil_pressure : 4.2;
+  const isEngineOff = rpm === 0;
   const healthStatus = health?.overall_health < 70 ? 'CRITICAL' : (health?.overall_health < 85 ? 'WARNING' : 'NOMINAL');
 
   // Offset angles for the 4 opposed cylinders (0, 180, 90, 270 deg)

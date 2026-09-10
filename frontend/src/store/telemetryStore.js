@@ -17,6 +17,12 @@ export const useTelemetryStore = create((set, get) => {
     selectedEngineId: 'eng_001',
     isPaused: false,
 
+    // Engine Ignition & Power State ('RUNNING', 'STARTING', 'OFF')
+    engineState: 'RUNNING',
+    engineMaster: true,
+    fuelPump: true,
+    magnetos: 'BOTH',
+
     // Current real-time telemetry snapshot
     telemetry: {
       rpm: 4850,
@@ -149,12 +155,45 @@ export const useTelemetryStore = create((set, get) => {
       socket.on('telemetry_stream', (frame) => {
         if (get().isPaused) return;
 
+        const currentEngineState = get().engineState;
+
+        let effectiveTelemetry = frame.telemetry;
+        if (currentEngineState === 'OFF') {
+          effectiveTelemetry = {
+            ...frame.telemetry,
+            rpm: 0,
+            power: 0,
+            torque: 0,
+            oil_pressure: 0.1,
+            fuel_flow: 0.0,
+            vibration: 0.0,
+            alternator_output: 0.0,
+            battery_voltage: 24.4,
+            engine_load: 0.0,
+            cht: Math.max(24, ((get().telemetry?.cht || 142) - 0.4)),
+            egt: Math.max(24, ((get().telemetry?.egt || 795) - 2.5))
+          };
+        } else if (currentEngineState === 'STARTING') {
+          effectiveTelemetry = {
+            ...frame.telemetry,
+            rpm: 280,
+            power: 2.1,
+            torque: 18.0,
+            oil_pressure: 0.8,
+            fuel_flow: 2.2,
+            vibration: 0.6,
+            alternator_output: 0.0,
+            battery_voltage: 22.8,
+            engine_load: 10.0
+          };
+        }
+
         // Modulate real-time engine acoustics with physical RPM & vibration
-        if (frame.telemetry) {
+        if (effectiveTelemetry && currentEngineState === 'RUNNING') {
           soundFx.updateEngineTelemetry(
-            frame.telemetry.rpm,
-            frame.telemetry.vibration,
-            frame.telemetry.throttle
+            effectiveTelemetry.rpm,
+            effectiveTelemetry.vibration,
+            effectiveTelemetry.throttle
           );
         }
 
@@ -162,25 +201,25 @@ export const useTelemetryStore = create((set, get) => {
           const timestamp = new Date().toLocaleTimeString();
           const newHistoryPoint = {
             time: timestamp,
-            rpm: frame.telemetry.rpm,
-            cht: frame.telemetry.cht,
-            egt: frame.telemetry.egt,
-            oil_pressure: frame.telemetry.oil_pressure,
-            oil_temperature: frame.telemetry.oil_temperature,
-            fuel_flow: frame.telemetry.fuel_flow,
-            vibration: frame.telemetry.vibration,
-            anomaly_score: frame.anomaly?.anomaly_score || 0,
+            rpm: effectiveTelemetry.rpm,
+            cht: effectiveTelemetry.cht,
+            egt: effectiveTelemetry.egt,
+            oil_pressure: effectiveTelemetry.oil_pressure,
+            oil_temperature: effectiveTelemetry.oil_temperature,
+            fuel_flow: effectiveTelemetry.fuel_flow,
+            vibration: effectiveTelemetry.vibration,
+            anomaly_score: currentEngineState === 'OFF' ? 0.05 : (frame.anomaly?.anomaly_score || 0),
             overall_health: frame.health?.overall_health || 90
           };
 
           const updatedHistory = [...state.history, newHistoryPoint].slice(-40);
 
           return {
-            telemetry: frame.telemetry,
-            anomaly: frame.anomaly || state.anomaly,
-            fault: frame.fault || state.fault,
+            telemetry: effectiveTelemetry,
+            anomaly: currentEngineState === 'OFF' ? { ...state.anomaly, is_anomaly: false, classification: 'Engine Off' } : (frame.anomaly || state.anomaly),
+            fault: currentEngineState === 'OFF' ? { ...state.fault, primary_fault: 'Engine Off' } : (frame.fault || state.fault),
             health: frame.health || state.health,
-            explanation: frame.explanation || state.explanation,
+            explanation: currentEngineState === 'OFF' ? { ...state.explanation, narrative_summary: 'Powerplant is currently shutdown (Cold & Dark). All mechanical and hydraulic systems secured.' } : (frame.explanation || state.explanation),
             twinSync: frame.twin_sync || state.twinSync,
             twinState: frame.twin_state || state.twinState,
             missionReliability: frame.mission_reliability || state.missionReliability,
@@ -239,6 +278,93 @@ export const useTelemetryStore = create((set, get) => {
       set({ selectedEngineId: engineId });
       if (socket && socket.connected) {
         socket.emit('select_engine', engineId);
+      }
+    },
+
+    // Engine Ignition & Starter Actions
+    startEngine: () => {
+      soundFx.playClick('toggle');
+      soundFx.playStarterCrank();
+      set({
+        engineState: 'STARTING',
+        engineMaster: true,
+        fuelPump: true,
+        magnetos: 'BOTH',
+        telemetry: {
+          ...get().telemetry,
+          rpm: 280,
+          power: 2.1,
+          oil_pressure: 0.8,
+          fuel_flow: 2.2,
+          vibration: 0.6,
+          battery_voltage: 22.8
+        }
+      });
+
+      // After 2.0 seconds of cranking, engine catches combustion
+      setTimeout(() => {
+        if (get().engineState === 'STARTING') {
+          soundFx.playEngineIgnition();
+          soundFx.startEngineSound(1800, 1.2);
+          set({
+            engineState: 'RUNNING',
+            telemetry: {
+              ...get().telemetry,
+              rpm: 1850,
+              power: 18.5,
+              torque: 65.0,
+              oil_pressure: 3.8,
+              fuel_flow: 6.8,
+              vibration: 1.4,
+              alternator_output: 28.0,
+              battery_voltage: 28.1
+            }
+          });
+        }
+      }, 2000);
+    },
+
+    stopEngine: () => {
+      soundFx.playClick('toggle');
+      soundFx.playEngineShutdown();
+      soundFx.stopEngineSound();
+      set({
+        engineState: 'OFF',
+        engineMaster: false,
+        telemetry: {
+          ...get().telemetry,
+          rpm: 0,
+          power: 0,
+          torque: 0,
+          oil_pressure: 0.1,
+          fuel_flow: 0.0,
+          vibration: 0.0,
+          alternator_output: 0.0,
+          battery_voltage: 24.4,
+          engine_load: 0.0
+        }
+      });
+    },
+
+    toggleEngine: () => {
+      const current = get().engineState;
+      if (current === 'RUNNING' || current === 'STARTING') {
+        get().stopEngine();
+      } else {
+        get().startEngine();
+      }
+    },
+
+    setFuelPump: (pump) => {
+      soundFx.playClick('toggle');
+      set({ fuelPump: pump });
+    },
+
+    setMagnetos: (mag) => {
+      soundFx.playClick('toggle');
+      set({ magnetos: mag });
+      if (mag === 'OFF' && get().engineState === 'RUNNING') {
+        get().stopEngine();
       }
     }
   };

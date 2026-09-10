@@ -1,7 +1,7 @@
 /**
  * AEROTWIN AI - FlightDynamicsBar Component
- * Top-mounted tactical flight controls and kinematics HUD for 3D UAV Digital Twin.
- * Supports Takeoff, Landing, Cruise, Ground Taxi, and Continuous Auto-Demo.
+ * Top-mounted tactical flight controls, engine ignition start/stop, and kinematics HUD.
+ * Supports Engine Start/Stop, Takeoff, Landing, Cruise, Ground Taxi, and Continuous Auto-Demo.
  */
 
 import React from 'react';
@@ -15,9 +15,13 @@ import {
   ArrowDownRight,
   Shield,
   Gauge,
-  CircleDot
+  CircleDot,
+  Power,
+  Zap,
+  Flame
 } from 'lucide-react';
 import { soundFx } from '../utils/soundFx';
+import { useTelemetryStore } from '../store/telemetryStore';
 
 export default function FlightDynamicsBar({
   flightMode = 'CRUISE',
@@ -26,6 +30,14 @@ export default function FlightDynamicsBar({
   compact = false
 }) {
   const {
+    engineState = 'RUNNING',
+    startEngine,
+    stopEngine,
+    toggleEngine,
+    telemetry
+  } = useTelemetryStore();
+
+  const {
     phase = 'CRUISE',
     phaseLabel = 'AIRBORNE CRUISE',
     altitudeM = 1200,
@@ -33,6 +45,11 @@ export default function FlightDynamicsBar({
     pitchDeg = 0.5,
     gearState = 'RETRACTED'
   } = flightTelemetry;
+
+  const currentRpm = Math.round(telemetry?.rpm !== undefined ? telemetry.rpm : 4850);
+  const isEngineRunning = engineState === 'RUNNING';
+  const isEngineStarting = engineState === 'STARTING';
+  const isEngineOff = engineState === 'OFF';
 
   const handleModeChange = (newMode) => {
     soundFx.playClick('toggle');
@@ -48,6 +65,13 @@ export default function FlightDynamicsBar({
 
   // Phase badge color styling
   const getPhaseBadge = () => {
+    if (isEngineOff) {
+      return {
+        bg: 'bg-slate-900 border-slate-700 text-slate-400',
+        dot: 'bg-slate-500',
+        icon: Power
+      };
+    }
     switch (phase) {
       case 'TAKEOFF_ROLL':
       case 'ROTATING':
@@ -92,21 +116,77 @@ export default function FlightDynamicsBar({
 
   return (
     <div className="bg-aerodark/95 backdrop-blur-md border border-aeroborder rounded-lg p-2.5 shadow-2xl flex flex-wrap items-center justify-between gap-2.5 z-20">
-      {/* Left: Flight Mode Action Triggers */}
-      <div className="flex items-center space-x-1.5 flex-wrap gap-y-1">
+      {/* Left: Engine Master Ignition & Flight Mode Action Triggers */}
+      <div className="flex items-center space-x-2 flex-wrap gap-y-1">
+        {/* ========================================================= */}
+        {/* ENGINE MASTER START / STOP BUTTON (Highlighted in Cyan/Red) */}
+        {/* ========================================================= */}
+        <button
+          onClick={toggleEngine}
+          disabled={isEngineStarting}
+          className={`px-3 py-1.5 rounded text-xs font-bold transition flex items-center space-x-1.5 shadow-md border ${
+            isEngineRunning
+              ? 'bg-red-950/90 hover:bg-red-900 border-red-600 text-red-200 shadow-red-950/60 ring-1 ring-red-500/50'
+              : isEngineStarting
+              ? 'bg-amber-950/90 border-amber-500 text-amber-300 animate-pulse'
+              : 'bg-emerald-600 hover:bg-emerald-500 border-emerald-400 text-white shadow-emerald-950/60 ring-1 ring-emerald-400 animate-pulse'
+          }`}
+          title={
+            isEngineRunning
+              ? 'Cut Magnetos & Shutdown Engine (0 RPM)'
+              : isEngineStarting
+              ? 'Starter motor cranking engine...'
+              : 'Engage Starter Motor & Ignite Rotax 914/915 Engine'
+          }
+        >
+          <Power className={`w-3.5 h-3.5 ${isEngineRunning ? 'text-red-400' : (isEngineStarting ? 'text-amber-400 animate-spin' : 'text-white')}`} />
+          <span>
+            {isEngineRunning
+              ? 'STOP ENGINE'
+              : isEngineStarting
+              ? 'CRANKING...'
+              : 'START ENGINE'}
+          </span>
+        </button>
+
+        {/* Engine RPM Pill */}
+        <div
+          className={`px-2 py-1 rounded border text-[10px] font-bold flex items-center space-x-1 ${
+            isEngineRunning
+              ? 'bg-emerald-950/60 border-emerald-800 text-emerald-300'
+              : isEngineStarting
+              ? 'bg-amber-950/60 border-amber-800 text-amber-300'
+              : 'bg-slate-900 border-slate-700 text-slate-500'
+          }`}
+          title="Current Propeller/Engine Crankshaft RPM"
+        >
+          <span
+            className={`w-1.5 h-1.5 rounded-full ${
+              isEngineRunning ? 'bg-emerald-400 animate-pulse' : (isEngineStarting ? 'bg-amber-400 animate-ping' : 'bg-slate-600')
+            }`}
+          />
+          <span>{currentRpm} RPM</span>
+        </div>
+
+        <div className="h-4 w-px bg-aeroborder hidden md:block mx-1" />
+
+        {/* Flight Visual Controls */}
         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mr-1 hidden sm:inline-block">
-          FLIGHT VISUALS:
+          FLIGHT:
         </span>
 
         {/* TAKEOFF Button */}
         <button
           onClick={() => handleModeChange('TAKEOFF')}
+          disabled={isEngineOff}
           className={`px-3 py-1.5 rounded text-xs font-bold transition flex items-center space-x-1.5 shadow-sm ${
-            flightMode === 'TAKEOFF'
+            isEngineOff
+              ? 'opacity-40 cursor-not-allowed bg-aerocard border border-aeroborder text-slate-500'
+              : flightMode === 'TAKEOFF'
               ? 'bg-amber-600 text-white ring-1 ring-amber-400 shadow-amber-900/50'
               : 'bg-aerocard border border-aeroborder text-slate-300 hover:text-white hover:border-amber-500/60'
           }`}
-          title="Simulate UAV runway acceleration, liftoff rotation, and climb-out"
+          title={isEngineOff ? 'Engine is off. Start engine first!' : 'Simulate UAV runway acceleration, liftoff rotation, and climb-out'}
         >
           <ArrowUpRight className="w-3.5 h-3.5 text-amber-400" />
           <span>TAKEOFF</span>
@@ -157,12 +237,15 @@ export default function FlightDynamicsBar({
         {/* AUTO DEMO CYCLE Button */}
         <button
           onClick={() => handleModeChange('AUTO_CYCLE')}
+          disabled={isEngineOff}
           className={`px-2.5 py-1.5 rounded text-xs font-bold transition flex items-center space-x-1 border ${
-            flightMode === 'AUTO_CYCLE'
+            isEngineOff
+              ? 'opacity-40 cursor-not-allowed bg-aerocard border-aeroborder text-slate-500'
+              : flightMode === 'AUTO_CYCLE'
               ? 'bg-purple-950/80 border-purple-500 text-purple-200 animate-pulse'
               : 'bg-aerocard border-aeroborder text-slate-400 hover:text-purple-300'
           }`}
-          title="Continuous flight cycle loop: Takeoff -> Cruise -> Land -> Repeat"
+          title={isEngineOff ? 'Engine is off. Start engine first!' : 'Continuous flight cycle loop: Takeoff -> Cruise -> Land -> Repeat'}
         >
           <RotateCw className="w-3.5 h-3.5 text-purple-400" />
           <span className="hidden sm:inline">AUTO CYCLE</span>
@@ -175,7 +258,7 @@ export default function FlightDynamicsBar({
         <div className={`px-2.5 py-1 rounded border flex items-center space-x-1.5 font-bold ${badge.bg}`}>
           <span className={`w-1.5 h-1.5 rounded-full ${badge.dot}`} />
           <PhaseIcon className="w-3 h-3" />
-          <span className="tracking-wide">{phaseLabel}</span>
+          <span className="tracking-wide">{isEngineOff ? 'POWERPLANT SHUTDOWN' : phaseLabel}</span>
         </div>
 
         {/* Altitude AGL */}
@@ -188,7 +271,7 @@ export default function FlightDynamicsBar({
         {/* Airspeed */}
         <div className="bg-aerocard border border-aeroborder px-2 py-1 rounded flex items-center space-x-1 text-slate-300 hidden md:flex">
           <span className="text-[9px] text-slate-500">SPD:</span>
-          <span className="font-bold text-sky-400">{Math.round(airspeedKts)}</span>
+          <span className="font-bold text-sky-400">{isEngineOff ? 0 : Math.round(airspeedKts)}</span>
           <span className="text-[9px] text-slate-400">KTAS</span>
         </div>
 

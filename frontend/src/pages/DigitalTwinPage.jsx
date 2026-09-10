@@ -36,12 +36,26 @@ import {
   Moon,
   Download,
   Sliders,
-  Maximize2
+  Maximize2,
+  Power
 } from 'lucide-react';
 import { soundFx } from '../utils/soundFx';
 
 export default function DigitalTwinPage({ onOpenFaultModal }) {
-  const { telemetry, health, fault, activeFaults } = useTelemetryStore();
+  const {
+    telemetry,
+    health,
+    fault,
+    activeFaults,
+    engineState,
+    startEngine,
+    stopEngine,
+    toggleEngine,
+    fuelPump,
+    setFuelPump,
+    magnetos,
+    setMagnetos
+  } = useTelemetryStore();
   const [cameraView, setCameraView] = useState('iso');
   const [viewMode, setViewMode] = useState('FULL_UAV'); // 'FULL_UAV', 'XRAY_CUTAWAY', 'ENGINE_ONLY'
   const [renderMode, setRenderMode] = useState('REALISTIC'); // 'REALISTIC', 'XRAY_CUTAWAY', 'THERMAL_HEATMAP', 'WIREFRAME_CAD'
@@ -420,6 +434,97 @@ export default function DigitalTwinPage({ onOpenFaultModal }) {
                     {part.label}
                   </button>
                 ))}
+              </div>
+            </div>
+
+            {/* ROTAX 914/915 POWERPLANT IGNITION & FADEC CONSOLE */}
+            <div className="bg-aerocard border border-aeroborder rounded-lg p-3 space-y-2.5">
+              <div className="flex items-center justify-between border-b border-aeroborder/80 pb-1.5">
+                <span className="text-[11px] font-bold text-slate-200 uppercase tracking-wider flex items-center space-x-1.5">
+                  <Power className="w-3.5 h-3.5 text-sky-400" />
+                  <span>ENGINE IGNITION & FADEC</span>
+                </span>
+                <span
+                  className={`text-[9px] px-1.5 py-0.2 rounded font-bold border ${
+                    engineState === 'RUNNING'
+                      ? 'bg-emerald-950 border-emerald-700 text-emerald-300'
+                      : engineState === 'STARTING'
+                      ? 'bg-amber-950 border-amber-700 text-amber-300 animate-pulse'
+                      : 'bg-slate-900 border-slate-700 text-slate-400'
+                  }`}
+                >
+                  {engineState === 'RUNNING' ? 'ONLINE (RUN)' : (engineState === 'STARTING' ? 'CRANKING' : 'COLD & DARK')}
+                </span>
+              </div>
+
+              {/* Master Start / Cut Buttons */}
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={startEngine}
+                  disabled={engineState === 'RUNNING' || engineState === 'STARTING'}
+                  className={`py-1.5 px-2 rounded text-[11px] font-bold flex items-center justify-center space-x-1 transition ${
+                    engineState === 'RUNNING'
+                      ? 'opacity-40 cursor-not-allowed bg-slate-800 text-slate-500 border border-slate-700'
+                      : engineState === 'STARTING'
+                      ? 'bg-amber-950 border border-amber-500 text-amber-300 animate-pulse'
+                      : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow shadow-emerald-900/40 animate-pulse'
+                  }`}
+                >
+                  <Power className={`w-3 h-3 ${engineState === 'STARTING' ? 'animate-spin' : ''}`} />
+                  <span>{engineState === 'STARTING' ? 'STARTING...' : 'START ENGINE'}</span>
+                </button>
+
+                <button
+                  onClick={stopEngine}
+                  disabled={engineState === 'OFF'}
+                  className={`py-1.5 px-2 rounded text-[11px] font-bold flex items-center justify-center space-x-1 transition ${
+                    engineState === 'OFF'
+                      ? 'opacity-40 cursor-not-allowed bg-slate-800 text-slate-500 border border-slate-700'
+                      : 'bg-red-950/80 hover:bg-red-900 border border-red-700 text-red-200'
+                  }`}
+                >
+                  <span>CUT ENGINE</span>
+                </button>
+              </div>
+
+              {/* Magnetos & Fuel Pump Controls */}
+              <div className="grid grid-cols-2 gap-2 text-[10px]">
+                {/* Dual Magnetos Switch */}
+                <div className="bg-slate-900/80 p-1.5 rounded border border-aeroborder/80 space-y-1">
+                  <div className="text-slate-400 font-bold flex justify-between">
+                    <span>MAGNETOS</span>
+                    <span className="text-sky-400">{magnetos}</span>
+                  </div>
+                  <div className="grid grid-cols-4 gap-0.5 text-[9px]">
+                    {['OFF', 'L', 'R', 'BOTH'].map((m) => (
+                      <button
+                        key={m}
+                        onClick={() => setMagnetos(m)}
+                        className={`py-0.5 rounded font-bold transition ${
+                          magnetos === m ? 'bg-sky-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        {m}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Electric Aux Fuel Pump */}
+                <div className="bg-slate-900/80 p-1.5 rounded border border-aeroborder/80 space-y-1">
+                  <div className="text-slate-400 font-bold flex justify-between">
+                    <span>AUX PUMP</span>
+                    <span className={fuelPump ? 'text-emerald-400' : 'text-slate-500'}>{fuelPump ? 'ON' : 'OFF'}</span>
+                  </div>
+                  <button
+                    onClick={() => setFuelPump(!fuelPump)}
+                    className={`w-full py-0.5 rounded font-bold transition text-[9px] ${
+                      fuelPump ? 'bg-emerald-950 border border-emerald-600 text-emerald-300' : 'bg-slate-800 text-slate-400'
+                    }`}
+                  >
+                    {fuelPump ? 'PUMP ACTIVE' : 'PUMP OFF'}
+                  </button>
+                </div>
               </div>
             </div>
 

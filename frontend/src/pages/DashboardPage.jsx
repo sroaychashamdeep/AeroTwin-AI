@@ -43,7 +43,8 @@ import {
   ChevronRight,
   Activity,
   Cpu,
-  Target
+  Target,
+  Power
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -61,7 +62,11 @@ export default function DashboardPage({ onOpenFaultModal }) {
     missionReliability,
     activeFaults,
     flightParams,
-    setFlightParams
+    setFlightParams,
+    engineState,
+    startEngine,
+    stopEngine,
+    toggleEngine
   } = useTelemetryStore();
 
   const [flightMode, setFlightMode] = useState('CRUISE');
@@ -307,23 +312,53 @@ export default function DashboardPage({ onOpenFaultModal }) {
             />
           </div>
 
-          {/* Quick Engine Flight Control Sliders */}
-          <div className="bg-aerocard border border-aeroborder rounded-lg p-3 space-y-2">
-            <div className="text-[11px] font-bold text-slate-300 uppercase tracking-wider flex justify-between">
-              <span>FLIGHT PARAMETERS</span>
-              <span className="text-sky-400">{flightParams.throttle}% THROTTLE</span>
+          {/* Quick Engine Flight Control & Ignition Card */}
+          <div className="bg-aerocard border border-aeroborder rounded-lg p-3 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold text-slate-300 uppercase tracking-wider">
+                ENGINE MASTER & THROTTLE
+              </span>
+              <button
+                onClick={toggleEngine}
+                disabled={engineState === 'STARTING'}
+                className={`px-2.5 py-1 rounded text-[10px] font-bold flex items-center space-x-1.5 transition border ${
+                  engineState === 'RUNNING'
+                    ? 'bg-red-950/80 hover:bg-red-900 border-red-700 text-red-200'
+                    : engineState === 'STARTING'
+                    ? 'bg-amber-950 border-amber-500 text-amber-300 animate-pulse'
+                    : 'bg-emerald-600 hover:bg-emerald-500 border-emerald-400 text-white animate-pulse'
+                }`}
+                title="Turn on or cut engine ignition"
+              >
+                <Power className={`w-3 h-3 ${engineState === 'STARTING' ? 'animate-spin text-amber-400' : ''}`} />
+                <span>
+                  {engineState === 'RUNNING' ? 'CUT ENGINE' : (engineState === 'STARTING' ? 'CRANKING...' : 'START ENGINE')}
+                </span>
+              </button>
             </div>
+
+            <div className="flex justify-between items-center text-[10px] text-slate-400 border-y border-aeroborder/60 py-1">
+              <span>STATUS: <strong className={engineState === 'RUNNING' ? 'text-emerald-400' : (engineState === 'STARTING' ? 'text-amber-400' : 'text-slate-500')}>{engineState}</strong></span>
+              <span>RPM: <strong className="text-white">{Math.round(telemetry.rpm)}</strong></span>
+              <span>OIL: <strong className={telemetry.oil_pressure < 2.5 ? 'text-red-400' : 'text-emerald-400'}>{telemetry.oil_pressure} bar</strong></span>
+            </div>
+
             <div className="space-y-1">
+              <div className="text-[10px] text-slate-400 flex justify-between">
+                <span>THROTTLE POSITION</span>
+                <span className="text-sky-400 font-bold">{flightParams.throttle}%</span>
+              </div>
               <input
                 type="range"
                 min="20"
                 max="100"
+                disabled={engineState === 'OFF'}
                 value={flightParams.throttle}
                 onChange={(e) => {
                   soundFx.playClick('normal');
                   setFlightParams({ throttle: e.target.value });
                 }}
-                className="w-full accent-sky-500 bg-slate-800 h-1.5 rounded cursor-pointer"
+                className={`w-full accent-sky-500 bg-slate-800 h-1.5 rounded cursor-pointer ${engineState === 'OFF' ? 'opacity-40 cursor-not-allowed' : ''}`}
               />
               <div className="flex justify-between text-[9px] text-slate-400">
                 <span>Idle (20%)</span>
