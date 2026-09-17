@@ -1,0 +1,47 @@
+services:
+  # Python FastAPI Scientific Microservice
+  - type: web
+    name: aerotwin-ai-service
+    env: python
+    rootDir: ai-service
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    plan: free
+    envVars:
+      - key: PORT
+        value: 8000
+      - key: PYTHON_VERSION
+        value: 3.11.9
+
+  # Node.js Express Gateway & Socket.IO Telemetry Broadcaster
+  - type: web
+    name: aerotwin-backend
+    env: node
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: node src/app.js
+    plan: free
+    envVars:
+      - key: PORT
+        value: 5000
+      - key: AI_SERVICE_URL
+        fromService:
+          type: web
+          name: aerotwin-ai-service
+          property: host
+      - key: JWT_SECRET
+        generateValue: true
+      - key: NODE_ENV
+        value: production
+
+  # React + Vite + Three.js GCS Interface
+  - type: web
+    name: aerotwin-frontend
+    env: static
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
