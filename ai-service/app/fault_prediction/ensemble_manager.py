@@ -49,16 +49,16 @@ class TimeSeriesEnsembleManager:
 
         # 1. Physics rule-based model probabilities
         phys_probs = {c: 0.01 for c in self.class_names}
-        if cht > 175 or (active_faults and active_faults.get("overheating", 0) > 0.4):
-            phys_probs["Overheating"] = 0.82
-        elif vib > 4.5 or (active_faults and active_faults.get("vibration_fault", 0) > 0.4):
-            phys_probs["Abnormal Vibration"] = 0.85
-        elif oil_p < 2.3 or (active_faults and active_faults.get("lubrication_degradation", 0) > 0.4):
-            phys_probs["Lubrication Degradation"] = 0.84
-        elif (active_faults and active_faults.get("misfire_severity", 0) > 0.4):
+        if (active_faults and active_faults.get("injector_degradation", 0) > 0.3) or (ff > 20.0 and egt > 820):
+            phys_probs["Injector Abnormality"] = 0.88
+        elif (active_faults and active_faults.get("misfire_severity", 0) > 0.3):
             phys_probs["Misfire"] = 0.88
-        elif (ff > 23.0 and egt > 820) or (active_faults and active_faults.get("injector_degradation", 0) > 0.4):
-            phys_probs["Injector Abnormality"] = 0.81
+        elif (active_faults and active_faults.get("lubrication_degradation", 0) > 0.3) or oil_p < 2.3:
+            phys_probs["Lubrication Degradation"] = 0.84
+        elif (active_faults and active_faults.get("overheating", 0) > 0.3) or cht > 175:
+            phys_probs["Overheating"] = 0.85
+        elif (active_faults and active_faults.get("vibration_fault", 0) > 0.3) or vib > 4.5:
+            phys_probs["Abnormal Vibration"] = 0.85
         else:
             phys_probs["Healthy"] = 0.94
 

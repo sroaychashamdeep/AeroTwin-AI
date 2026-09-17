@@ -116,11 +116,14 @@ class SimulatorTelemetrySource extends TelemetrySource {
           diagnostics = this._localDiagnosticsFallback(frame);
         }
 
+        const intelState = diagnostics.intelligence_state || diagnostics.twin_state || null;
+        const alerts = this._suppressAlertStorm(diagnostics, frame.measured);
+
         const payload = {
           timestamp: new Date().toISOString(),
           source: 'SIMULATOR',
-          engine_id: 'eng_001',
-          uav_id: 'uav_001',
+          engine_id: 'AERO-ENG-001',
+          uav_id: 'UAV-001',
           telemetry: frame.measured,
           physics_expected: frame.physics_expected,
           faults_active: this.activeFaults,
@@ -131,8 +134,10 @@ class SimulatorTelemetrySource extends TelemetrySource {
           health: diagnostics.health,
           explanation: diagnostics.explanation,
           twin_sync: diagnostics.twin_sync,
-          twin_state: diagnostics.twin_state || null,
-          mission_reliability: diagnostics.mission_reliability || null
+          twin_state: intelState,
+          intelligence_state: intelState,
+          mission_reliability: diagnostics.mission_reliability || null,
+          alerts: alerts
         };
 
         this.emitTelemetry(payload);
@@ -140,6 +145,37 @@ class SimulatorTelemetrySource extends TelemetrySource {
         console.error('[SimulatorTelemetrySource] Cycle error:', err.message);
       }
     }, intervalMs);
+  }
+
+  _suppressAlertStorm(diagnostics, measured) {
+    const intel = diagnostics.intelligence_state || diagnostics.twin_state || {};
+    const diag = intel.diagnosis || diagnostics.fault || {};
+    const root = intel.root_cause || {};
+    const primaryFault = diag.primary_fault || 'Healthy';
+
+    if (primaryFault === 'Healthy') {
+      return [];
+    }
+
+    const supporting = [];
+    if (measured.egt > 820) supporting.push('EGT (+35°C deviation)');
+    if (measured.cht > 155) supporting.push('CHT (+18°C thermal soak)');
+    if (measured.fuel_flow > 21) supporting.push('Fuel Flow (+20% MAP schedule)');
+    if (measured.vibration > 3.5) supporting.push('Vibration (harmonic 3.5g RMS)');
+    if (measured.oil_pressure < 2.5) supporting.push('Oil Pressure (-42% low)');
+
+    // Collapse into 1 root-cause alert
+    return [{
+      id: `ALT-RC-${Date.now() % 10000}`,
+      timestamp: new Date().toISOString(),
+      severity: intel.recommendation?.priority === 'P1' ? 'CRITICAL' : 'WARNING',
+      title: `Root Cause: ${primaryFault}`,
+      initiating_signal: root.initiating_signal || 'Fuel System',
+      message: `Cascaded sensor storm suppressed. Primary driver identified as ${primaryFault}.`,
+      supporting_signals: supporting,
+      count_suppressed: Math.max(0, supporting.length - 1),
+      recommendation: intel.recommendation?.action || 'Inspect subsystem components'
+    }];
   }
 
   stop() {

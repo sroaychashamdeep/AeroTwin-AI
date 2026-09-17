@@ -17,6 +17,31 @@ export const useTelemetryStore = create((set, get) => {
     selectedEngineId: 'eng_001',
     isPaused: false,
 
+    // Command Center Operational View Mode ('OPERATOR', 'ENGINEER', 'MAINTENANCE', 'COPILOT')
+    operationalMode: 'OPERATOR',
+    setOperationalMode: (mode) => set({ operationalMode: mode }),
+
+    // Universal Action Modals
+    whyModal: { isOpen: false, metric: 'HEALTH', title: 'Why is Health at 87%?', data: null },
+    whatIfModal: { isOpen: false, inputs: { throttle: 70, altitude: 12000, ambientTemp: 24, faults: {} }, results: null },
+    whatChangedModal: { isOpen: false },
+    whatShouldIDoModal: { isOpen: false },
+    canICompleteMissionModal: { isOpen: false },
+
+    openWhyModal: (metric, title, data) => set({ whyModal: { isOpen: true, metric, title, data } }),
+    closeWhyModal: () => set((s) => ({ whyModal: { ...s.whyModal, isOpen: false } })),
+    openWhatIfModal: (params = {}) => set((s) => ({ whatIfModal: { ...s.whatIfModal, isOpen: true, ...params } })),
+    closeWhatIfModal: () => set((s) => ({ whatIfModal: { ...s.whatIfModal, isOpen: false } })),
+    openWhatChangedModal: () => set({ whatChangedModal: { isOpen: true } }),
+    closeWhatChangedModal: () => set({ whatChangedModal: { isOpen: false } }),
+    openWhatShouldIDoModal: () => set({ whatShouldIDoModal: { isOpen: true } }),
+    closeWhatShouldIDoModal: () => set({ whatShouldIDoModal: { isOpen: false } }),
+    openCanICompleteMissionModal: () => set({ canICompleteMissionModal: { isOpen: true } }),
+    closeCanICompleteMissionModal: () => set({ canICompleteMissionModal: { isOpen: false } }),
+
+    // Central Unified EngineIntelligenceState
+    intelligenceState: null,
+
     // Engine Ignition & Power State ('RUNNING', 'STARTING', 'OFF')
     engineState: 'RUNNING',
     engineMaster: true,
@@ -221,7 +246,8 @@ export const useTelemetryStore = create((set, get) => {
             health: frame.health || state.health,
             explanation: currentEngineState === 'OFF' ? { ...state.explanation, narrative_summary: 'Powerplant is currently shutdown (Cold & Dark). All mechanical and hydraulic systems secured.' } : (frame.explanation || state.explanation),
             twinSync: frame.twin_sync || state.twinSync,
-            twinState: frame.twin_state || state.twinState,
+            twinState: frame.twin_state || frame.intelligence_state || state.twinState,
+            intelligenceState: frame.intelligence_state || frame.twin_state || state.intelligenceState,
             missionReliability: frame.mission_reliability || state.missionReliability,
             sensorDiagnostics: frame.sensor_diagnostics || state.sensorDiagnostics,
             activeFaults: frame.faults_active || state.activeFaults,

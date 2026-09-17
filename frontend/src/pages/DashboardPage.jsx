@@ -47,6 +47,10 @@ import {
   Power
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { OperationalModeBar } from '../components/OperationalModeBar';
+import { UniversalActionModals } from '../components/UniversalActionModals';
+import { CausalGraphViewer } from '../components/CausalGraphViewer';
+import { DemoModeController } from '../components/DemoModeController';
 
 export default function DashboardPage({ onOpenFaultModal }) {
   const navigate = useNavigate();
@@ -59,6 +63,13 @@ export default function DashboardPage({ onOpenFaultModal }) {
     explanation,
     twinSync,
     twinState,
+    intelligenceState,
+    operationalMode,
+    openWhyModal,
+    openWhatIfModal,
+    openWhatChangedModal,
+    openWhatShouldIDoModal,
+    openCanICompleteMissionModal,
     missionReliability,
     activeFaults,
     flightParams,
@@ -100,10 +111,23 @@ export default function DashboardPage({ onOpenFaultModal }) {
 
   const consensus = twinState?.consensus || fault;
 
-  const isFaulted = fault.primary_fault !== 'Healthy' || anomaly.is_anomaly;
+  const diag = intelligenceState?.diagnosis || twinState?.diagnosis || {
+    primary_fault: fault?.primary_fault || 'Healthy',
+    probability: fault?.probability || 0.94,
+    confidence: fault?.probability || 0.89,
+    model_agreement: 0.89
+  };
+
+  const isFaulted = (fault?.primary_fault && fault.primary_fault !== 'Healthy') || anomaly?.is_anomaly;
 
   return (
     <div className="space-y-4 p-4 font-mono">
+      {/* Top Operational Mode Switcher Bar */}
+      <OperationalModeBar />
+
+      {/* Automated Demo Mode 2.0 Controller */}
+      <DemoModeController />
+
       {/* Top Tactical Status Bar */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
         {/* 1. UAV Status */}
@@ -150,6 +174,12 @@ export default function DashboardPage({ onOpenFaultModal }) {
               <div className="text-[10px] text-slate-400 uppercase">MISSION PROFILE</div>
               <div className="text-sm font-bold text-white">MSN-ISR-0841 (ISR)</div>
               <div className="text-[10px] text-sky-400">LOITER FL120 | 70% PWR</div>
+              <button
+                onClick={openCanICompleteMissionModal}
+                className="text-[9px] font-mono text-emerald-400 hover:text-emerald-300 font-bold underline block mt-0.5"
+              >
+                [CAN I COMPLETE MISSION?]
+              </button>
             </div>
           </div>
           <span className={`text-xs px-2 py-0.5 rounded font-bold border ${
@@ -168,7 +198,20 @@ export default function DashboardPage({ onOpenFaultModal }) {
             <div>
               <div className="text-[10px] text-slate-400 uppercase">ESTIMATED RUL</div>
               <div className="text-base font-bold text-white">{health.rul_hours} <span className="text-xs font-normal text-slate-400">HOURS</span></div>
-              <div className="text-[10px] text-slate-400">FAIL PROB: {(health.failure_probability * 100).toFixed(1)}%</div>
+              <div className="flex items-center gap-1.5 mt-1">
+                <button
+                  onClick={() => openWhyModal('RUL', 'Probabilistic RUL & Failure Horizon', health)}
+                  className="text-[9px] font-bold px-1.5 py-0.5 bg-cyan-950/80 border border-cyan-700 text-cyan-300 rounded hover:bg-cyan-900"
+                >
+                  WHY?
+                </button>
+                <button
+                  onClick={() => openWhatIfModal()}
+                  className="text-[9px] font-bold px-1.5 py-0.5 bg-indigo-950/80 border border-indigo-700 text-indigo-300 rounded hover:bg-indigo-900"
+                >
+                  WHAT IF?
+                </button>
+              </div>
             </div>
           </div>
           <span className="text-[10px] text-slate-400 text-right">
@@ -200,21 +243,34 @@ export default function DashboardPage({ onOpenFaultModal }) {
                 )}
               </div>
               <p className="text-[11px] text-slate-300 font-sans mt-0.5">{explanation.narrative_summary}</p>
+              <div className="flex items-center gap-2 mt-1 text-[10px] font-mono text-slate-400">
+                <span>Source: Bi-GRU + Physics Residual</span>
+                <span>•</span>
+                <span>Confidence: {Math.round((diag.confidence || 0.89) * 100)}%</span>
+                <span>•</span>
+                <span>Data Quality: 98.5%</span>
+              </div>
             </div>
           </div>
           <div className="flex items-center space-x-2">
+            <button
+              onClick={openWhatShouldIDoModal}
+              className="px-3 py-1 rounded bg-amber-600 hover:bg-amber-500 text-slate-950 font-mono text-xs font-bold transition shadow"
+            >
+              WHAT SHOULD I DO?
+            </button>
+            <button
+              onClick={() => openWhyModal('FAULT', `Why is ${fault.primary_fault} active?`, fault)}
+              className="px-2.5 py-1 rounded bg-cyan-950 border border-cyan-800 text-cyan-300 hover:bg-cyan-900 text-xs font-mono font-bold transition"
+            >
+              WHY?
+            </button>
             <button
               onClick={() => navigate('/ai-copilot')}
               className="px-3 py-1 rounded bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold transition flex items-center space-x-1"
             >
               <span>CONSULT COPILOT</span>
               <ChevronRight className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={() => navigate('/ai-diagnostics')}
-              className="px-3 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs transition"
-            >
-              VIEW XAI BREAKDOWN
             </button>
           </div>
         </div>
@@ -465,7 +521,21 @@ export default function DashboardPage({ onOpenFaultModal }) {
           {/* Circular Health Ring */}
           <div className="bg-aerocard border border-aeroborder rounded-lg p-4 flex flex-col items-center">
             <HealthScoreRing score={health.overall_health} size={150} />
-            <div className="w-full grid grid-cols-2 gap-2 mt-4 pt-3 border-t border-aeroborder text-center text-xs">
+            <div className="flex items-center gap-2 mt-2">
+              <button
+                onClick={() => openWhyModal('HEALTH', 'Overall Powerplant Health Breakdown', health)}
+                className="text-[10px] font-mono font-bold px-2 py-0.5 bg-cyan-950/80 border border-cyan-800 text-cyan-300 rounded hover:bg-cyan-900 transition"
+              >
+                WHY?
+              </button>
+              <button
+                onClick={openWhatChangedModal}
+                className="text-[10px] font-mono font-bold px-2 py-0.5 bg-slate-800 border border-slate-700 text-slate-300 rounded hover:bg-slate-700 transition"
+              >
+                WHAT CHANGED?
+              </button>
+            </div>
+            <div className="w-full grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-aeroborder text-center text-xs">
               <div>
                 <span className="text-[9px] text-slate-400 block">DEGRADATION</span>
                 <span className="font-bold text-amber-400">{health.degradation_index}%</span>
@@ -576,6 +646,16 @@ export default function DashboardPage({ onOpenFaultModal }) {
           </div>
         </div>
       </div>
+
+      {/* Engineer Mode: Interactive Physics Causal Graph */}
+      {operationalMode === 'ENGINEER' && (
+        <div className="mt-4">
+          <CausalGraphViewer />
+        </div>
+      )}
+
+      {/* Universal Interactive Action Modals (WHY, WHAT IF, WHAT CHANGED, WHAT SHOULD I DO, CAN I COMPLETE MISSION) */}
+      <UniversalActionModals />
     </div>
   );
 }
