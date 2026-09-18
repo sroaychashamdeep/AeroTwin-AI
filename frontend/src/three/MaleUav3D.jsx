@@ -527,12 +527,21 @@ export default function MaleUav3D({
 
   if (isEngineOnly) {
     return (
-      <PistonEngine3D
-        telemetry={telemetry}
-        health={health}
-        fault={fault}
-        activeFaults={activeFaults}
-      />
+      <group position={[0, 0, 0]}>
+        {/* High-Visibility Studio Lighting for Engine Inspection */}
+        <ambientLight intensity={0.9} />
+        <directionalLight position={[6, 8, 6]} intensity={1.8} castShadow />
+        <directionalLight position={[-6, -4, -6]} intensity={0.8} />
+        <pointLight position={[0, 2.2, 0]} intensity={1.5} color="#38bdf8" />
+        <PistonEngine3D
+          telemetry={telemetry}
+          health={health}
+          fault={fault}
+          activeFaults={activeFaults}
+          showAnnotations={showSensors}
+          isStandalone={true}
+        />
+      </group>
     );
   }
 
@@ -623,10 +632,10 @@ export default function MaleUav3D({
           </>
         )}
 
-        {/* Aft Fuselage (Engine Nacelle Cowling) */}
+        {/* Aft Fuselage (Engine Nacelle Cowling / Maintenance Inspection Hatch) */}
         <mesh
-          position={[0, 0.25 + expY * 0.5, -1.8]}
-          rotation={[Math.PI / 2, 0, 0]}
+          position={[0, (isCutaway ? 0.85 : 0.25) + expY * 0.5, -1.8]}
+          rotation={[Math.PI / 2, 0, isCutaway ? -0.4 : 0]}
           onClick={() => onSelectPart && onSelectPart('engine_bay')}
         >
           <cylinderGeometry args={[0.65, 0.85, 2.6, 32]} />
@@ -635,7 +644,7 @@ export default function MaleUav3D({
             metalness={0.8}
             roughness={0.2}
             transparent={isTransparent}
-            opacity={isCutaway ? 0.2 : (isWireframe ? 0.8 : 1.0)}
+            opacity={isCutaway ? 0.3 : (isWireframe ? 0.8 : 1.0)}
             wireframe={isWireframe || isCutaway}
             emissive={isThermal && cht > 165 ? '#7f1d1d' : '#000000'}
             emissiveIntensity={isThermal && cht > 165 ? 0.8 : 0}
@@ -933,12 +942,16 @@ export default function MaleUav3D({
         </group>
 
         {/* 6. INTERNAL ROTAX 914/915 TURBO DIGITAL TWIN */}
-        <group position={[0, 0.22, -1.6 + expAftZ * 0.4]} scale={[0.48, 0.48, 0.48]}>
+        <group position={[0, 0.22, -1.6 + expAftZ * 0.4]} scale={[0.58, 0.58, 0.58]}>
+          {/* Internal Engine Bay Point Light for High Visibility */}
+          <pointLight position={[0, 0.8, 0]} intensity={isCutaway ? 2.8 : 0.9} distance={4.5} color={cht > 165 ? '#f59e0b' : '#38bdf8'} />
           <PistonEngine3D
             telemetry={telemetry}
             health={health}
             fault={fault}
             activeFaults={activeFaults}
+            showAnnotations={false}
+            isStandalone={false}
           />
         </group>
 

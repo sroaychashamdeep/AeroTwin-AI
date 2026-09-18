@@ -81,6 +81,7 @@ export default function DashboardPage({ onOpenFaultModal }) {
   } = useTelemetryStore();
 
   const [flightMode, setFlightMode] = useState('CRUISE');
+  const [modelViewMode, setModelViewMode] = useState('ENGINE_ONLY'); // 'FULL_UAV', 'XRAY_CUTAWAY', 'ENGINE_ONLY'
   const [flightTelemetry, setFlightTelemetry] = useState({
     phase: 'CRUISE',
     phaseLabel: 'AIRBORNE CRUISE',
@@ -451,18 +452,56 @@ export default function DashboardPage({ onOpenFaultModal }) {
             compact={true}
           />
 
+          {/* 3D Inspection Mode Bar: Full UAV Airframe vs Isolated Rotax Engine vs Engine Bay X-Ray */}
+          <div className="flex items-center justify-between bg-aerocard/90 px-3 py-1.5 rounded-lg border border-aeroborder text-xs">
+            <span className="text-[10px] text-slate-300 uppercase font-mono flex items-center gap-1.5 font-bold">
+              <Activity className="w-3.5 h-3.5 text-sky-400" />
+              <span>3D INSPECTION VIEW:</span>
+            </span>
+            <div className="flex items-center space-x-1.5">
+              {[
+                { id: 'ENGINE_ONLY', label: 'ROTAX 914 ENGINE FOCUS' },
+                { id: 'XRAY_CUTAWAY', label: 'ENGINE BAY X-RAY' },
+                { id: 'FULL_UAV', label: 'UAV AIRFRAME' }
+              ].map((m) => (
+                <button
+                  key={m.id}
+                  onClick={() => {
+                    soundFx.playClick('toggle');
+                    setModelViewMode(m.id);
+                  }}
+                  className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono transition border ${
+                    modelViewMode === m.id
+                      ? 'bg-sky-600 border-sky-400 text-white shadow-md shadow-sky-950/60'
+                      : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-white hover:border-slate-500'
+                  }`}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* 3D Canvas Box */}
           <div className="h-[370px] bg-aerodark rounded-lg border border-aeroborder relative overflow-hidden flex items-center justify-center">
-            <Canvas camera={{ position: [6.5, 4.5, 6.5], fov: 45 }}>
-              <ambientLight intensity={0.6} />
-              <directionalLight position={[10, 10, 5]} intensity={1.2} />
-              <directionalLight position={[-10, -5, -5]} intensity={0.5} />
+            <Canvas
+              key={modelViewMode}
+              camera={{
+                position: modelViewMode === 'ENGINE_ONLY' ? [4.2, 2.6, 4.2] : [6.5, 4.5, 6.5],
+                fov: modelViewMode === 'ENGINE_ONLY' ? 38 : 45
+              }}
+            >
+              <ambientLight intensity={0.75} />
+              <directionalLight position={[10, 10, 5]} intensity={1.5} />
+              <directionalLight position={[-10, -5, -5]} intensity={0.6} />
+              <pointLight position={[0, 3, 0]} intensity={1.0} color="#38bdf8" />
               <MaleUav3D
                 telemetry={telemetry}
                 health={health}
                 fault={fault}
                 activeFaults={activeFaults}
-                viewMode="XRAY_CUTAWAY"
+                viewMode={modelViewMode}
+                renderMode={modelViewMode === 'XRAY_CUTAWAY' ? 'XRAY_CUTAWAY' : 'REALISTIC'}
                 flightMode={flightMode}
                 onFlightTelemetryUpdate={setFlightTelemetry}
               />
@@ -470,11 +509,25 @@ export default function DashboardPage({ onOpenFaultModal }) {
             </Canvas>
 
             {/* In-canvas Telemetry Overlay */}
-            <div className="absolute top-2 left-2 bg-aeroblack/80 backdrop-blur-sm border border-aeroborder/80 p-2 rounded text-[10px] space-y-1 text-slate-300 pointer-events-none">
-              <div className="text-sky-400 font-bold">TAPAS MALE-201 AIRFRAME & TWIN</div>
-              <div>Crankshaft Speed: <span className="text-white font-bold">{Math.round(telemetry.rpm)} RPM</span></div>
-              <div>Thermal Level: <span className={telemetry.cht > 165 ? 'text-amber-400 font-bold' : 'text-emerald-400'}>{telemetry.cht}°C</span></div>
-              <div>Mechanical Vib: <span className="text-white font-bold">{telemetry.vibration} mm/s</span></div>
+            <div className="absolute top-2 left-2 bg-aeroblack/85 backdrop-blur-sm border border-aeroborder/80 p-2.5 rounded text-[10px] space-y-1 text-slate-300 pointer-events-none shadow-xl">
+              {modelViewMode === 'ENGINE_ONLY' ? (
+                <>
+                  <div className="text-sky-400 font-bold border-b border-slate-800 pb-0.5">ROTAX 914 TURBOCHARGED ENGINE TWIN</div>
+                  <div>Pistons: <span className="text-emerald-400 font-bold">4-Cyl Opposed ({Math.round(telemetry.rpm)} RPM)</span></div>
+                  <div>Turbine EGT: <span className="text-amber-400 font-bold">{telemetry.egt}°C (Boost Active)</span></div>
+                  <div>Cylinder Head CHT: <span className={telemetry.cht > 165 ? 'text-amber-400 font-bold' : 'text-emerald-400'}>{telemetry.cht}°C</span></div>
+                  <div>Fuel Delivery: <span className="text-cyan-300 font-bold">{telemetry.fuel_flow} L/h</span></div>
+                  <div>Lubrication: <span className={telemetry.oil_pressure < 2.5 ? 'text-rose-400 font-bold' : 'text-white'}>{telemetry.oil_pressure} bar</span></div>
+                </>
+              ) : (
+                <>
+                  <div className="text-sky-400 font-bold border-b border-slate-800 pb-0.5">TAPAS MALE-201 AIRFRAME & TWIN</div>
+                  <div>Crankshaft Speed: <span className="text-white font-bold">{Math.round(telemetry.rpm)} RPM</span></div>
+                  <div>Thermal Level: <span className={telemetry.cht > 165 ? 'text-amber-400 font-bold' : 'text-emerald-400'}>{telemetry.cht}°C</span></div>
+                  <div>Mechanical Vib: <span className="text-white font-bold">{telemetry.vibration} mm/s</span></div>
+                  <div>Flight Phase: <span className="text-sky-300 font-bold">{flightTelemetry.phaseLabel}</span></div>
+                </>
+              )}
             </div>
 
             <div className="absolute bottom-2 right-2 bg-aeroblack/80 backdrop-blur-sm border border-aeroborder/80 px-2 py-1 rounded text-[9px] text-slate-400 pointer-events-none">
