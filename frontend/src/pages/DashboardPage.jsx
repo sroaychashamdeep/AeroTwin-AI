@@ -81,7 +81,7 @@ export default function DashboardPage({ onOpenFaultModal }) {
   } = useTelemetryStore();
 
   const [flightMode, setFlightMode] = useState('CRUISE');
-  const [modelViewMode, setModelViewMode] = useState('ENGINE_ONLY'); // 'FULL_UAV', 'XRAY_CUTAWAY', 'ENGINE_ONLY'
+  const [dashboard3DMode, setDashboard3DMode] = useState('ENGINE_ONLY'); // 'ENGINE_ONLY', 'XRAY_CUTAWAY', 'FULL_UAV'
   const [flightTelemetry, setFlightTelemetry] = useState({
     phase: 'CRUISE',
     phaseLabel: 'AIRBORNE CRUISE',
@@ -430,10 +430,52 @@ export default function DashboardPage({ onOpenFaultModal }) {
         <div className="lg:col-span-5 flex flex-col space-y-2">
           <div className="flex items-center justify-between text-xs font-bold text-slate-300 pb-1 border-b border-aeroborder">
             <div className="flex items-center space-x-2">
-              <span>3D DIGITAL TWIN TELEMETRY SYNCHRONIZATION</span>
-              <span className="text-[10px] px-1.5 py-0.2 rounded bg-sky-950 border border-sky-800 text-sky-400 font-bold">
-                PHYSICS LINKED
-              </span>
+              <span>3D DIGITAL TWIN SYNCHRONIZATION</span>
+              {/* 3D View Mode Quick Switcher */}
+              <div className="flex items-center space-x-1 bg-slate-900/90 p-0.5 rounded border border-aeroborder text-[10px]">
+                <button
+                  onClick={() => {
+                    soundFx.playClick('toggle');
+                    setDashboard3DMode('ENGINE_ONLY');
+                  }}
+                  className={`px-2 py-0.5 rounded font-bold transition flex items-center space-x-1 ${
+                    dashboard3DMode === 'ENGINE_ONLY'
+                      ? 'bg-sky-600 text-white shadow'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                  title="View High-Fidelity 3D Rotax Piston Engine Digital Twin"
+                >
+                  <span>⚙️ PROPER 3D ENGINE</span>
+                </button>
+                <button
+                  onClick={() => {
+                    soundFx.playClick('toggle');
+                    setDashboard3DMode('XRAY_CUTAWAY');
+                  }}
+                  className={`px-2 py-0.5 rounded font-bold transition flex items-center space-x-1 ${
+                    dashboard3DMode === 'XRAY_CUTAWAY'
+                      ? 'bg-sky-600 text-white shadow'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                  title="View Engine Bay Inside UAV with Transparent Nacelle"
+                >
+                  <span>🔍 ENGINE BAY</span>
+                </button>
+                <button
+                  onClick={() => {
+                    soundFx.playClick('toggle');
+                    setDashboard3DMode('FULL_UAV');
+                  }}
+                  className={`px-2 py-0.5 rounded font-bold transition flex items-center space-x-1 ${
+                    dashboard3DMode === 'FULL_UAV'
+                      ? 'bg-sky-600 text-white shadow'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                  title="View Full UAV Airframe"
+                >
+                  <span>🛩️ FULL UAV</span>
+                </button>
+              </div>
             </div>
             <button
               onClick={() => navigate('/digital-twin')}
@@ -452,56 +494,26 @@ export default function DashboardPage({ onOpenFaultModal }) {
             compact={true}
           />
 
-          {/* 3D Inspection Mode Bar: Full UAV Airframe vs Isolated Rotax Engine vs Engine Bay X-Ray */}
-          <div className="flex items-center justify-between bg-aerocard/90 px-3 py-1.5 rounded-lg border border-aeroborder text-xs">
-            <span className="text-[10px] text-slate-300 uppercase font-mono flex items-center gap-1.5 font-bold">
-              <Activity className="w-3.5 h-3.5 text-sky-400" />
-              <span>3D INSPECTION VIEW:</span>
-            </span>
-            <div className="flex items-center space-x-1.5">
-              {[
-                { id: 'ENGINE_ONLY', label: 'ROTAX 914 ENGINE FOCUS' },
-                { id: 'XRAY_CUTAWAY', label: 'ENGINE BAY X-RAY' },
-                { id: 'FULL_UAV', label: 'UAV AIRFRAME' }
-              ].map((m) => (
-                <button
-                  key={m.id}
-                  onClick={() => {
-                    soundFx.playClick('toggle');
-                    setModelViewMode(m.id);
-                  }}
-                  className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono transition border ${
-                    modelViewMode === m.id
-                      ? 'bg-sky-600 border-sky-400 text-white shadow-md shadow-sky-950/60'
-                      : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-white hover:border-slate-500'
-                  }`}
-                >
-                  {m.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
           {/* 3D Canvas Box */}
           <div className="h-[370px] bg-aerodark rounded-lg border border-aeroborder relative overflow-hidden flex items-center justify-center">
             <Canvas
-              key={modelViewMode}
+              key={dashboard3DMode}
               camera={{
-                position: modelViewMode === 'ENGINE_ONLY' ? [4.2, 2.6, 4.2] : [6.5, 4.5, 6.5],
-                fov: modelViewMode === 'ENGINE_ONLY' ? 38 : 45
+                position: dashboard3DMode === 'ENGINE_ONLY' ? [4.2, 3.0, 4.6] : [6.5, 4.5, 6.5],
+                fov: dashboard3DMode === 'ENGINE_ONLY' ? 40 : 45
               }}
             >
-              <ambientLight intensity={0.75} />
-              <directionalLight position={[10, 10, 5]} intensity={1.5} />
+              <ambientLight intensity={0.7} />
+              <directionalLight position={[10, 10, 5]} intensity={1.4} />
               <directionalLight position={[-10, -5, -5]} intensity={0.6} />
-              <pointLight position={[0, 3, 0]} intensity={1.0} color="#38bdf8" />
+              <pointLight position={[0, 3, 0]} intensity={1.2} color="#38bdf8" />
               <MaleUav3D
                 telemetry={telemetry}
                 health={health}
                 fault={fault}
                 activeFaults={activeFaults}
-                viewMode={modelViewMode}
-                renderMode={modelViewMode === 'XRAY_CUTAWAY' ? 'XRAY_CUTAWAY' : 'REALISTIC'}
+                viewMode={dashboard3DMode}
+                renderMode={dashboard3DMode === 'XRAY_CUTAWAY' ? 'XRAY_CUTAWAY' : 'REALISTIC'}
                 flightMode={flightMode}
                 onFlightTelemetryUpdate={setFlightTelemetry}
               />
@@ -509,25 +521,19 @@ export default function DashboardPage({ onOpenFaultModal }) {
             </Canvas>
 
             {/* In-canvas Telemetry Overlay */}
-            <div className="absolute top-2 left-2 bg-aeroblack/85 backdrop-blur-sm border border-aeroborder/80 p-2.5 rounded text-[10px] space-y-1 text-slate-300 pointer-events-none shadow-xl">
-              {modelViewMode === 'ENGINE_ONLY' ? (
-                <>
-                  <div className="text-sky-400 font-bold border-b border-slate-800 pb-0.5">ROTAX 914 TURBOCHARGED ENGINE TWIN</div>
-                  <div>Pistons: <span className="text-emerald-400 font-bold">4-Cyl Opposed ({Math.round(telemetry.rpm)} RPM)</span></div>
-                  <div>Turbine EGT: <span className="text-amber-400 font-bold">{telemetry.egt}°C (Boost Active)</span></div>
-                  <div>Cylinder Head CHT: <span className={telemetry.cht > 165 ? 'text-amber-400 font-bold' : 'text-emerald-400'}>{telemetry.cht}°C</span></div>
-                  <div>Fuel Delivery: <span className="text-cyan-300 font-bold">{telemetry.fuel_flow} L/h</span></div>
-                  <div>Lubrication: <span className={telemetry.oil_pressure < 2.5 ? 'text-rose-400 font-bold' : 'text-white'}>{telemetry.oil_pressure} bar</span></div>
-                </>
-              ) : (
-                <>
-                  <div className="text-sky-400 font-bold border-b border-slate-800 pb-0.5">TAPAS MALE-201 AIRFRAME & TWIN</div>
-                  <div>Crankshaft Speed: <span className="text-white font-bold">{Math.round(telemetry.rpm)} RPM</span></div>
-                  <div>Thermal Level: <span className={telemetry.cht > 165 ? 'text-amber-400 font-bold' : 'text-emerald-400'}>{telemetry.cht}°C</span></div>
-                  <div>Mechanical Vib: <span className="text-white font-bold">{telemetry.vibration} mm/s</span></div>
-                  <div>Flight Phase: <span className="text-sky-300 font-bold">{flightTelemetry.phaseLabel}</span></div>
-                </>
-              )}
+            <div className="absolute top-2 left-2 bg-aeroblack/85 backdrop-blur-md border border-aeroborder/80 p-2.5 rounded-lg text-[10px] space-y-1 text-slate-300 pointer-events-none shadow-xl">
+              <div className="text-sky-400 font-bold flex items-center space-x-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span>
+                  {dashboard3DMode === 'ENGINE_ONLY'
+                    ? 'ROTAX 914/915 TURBO POWERPLANT TWIN'
+                    : 'TAPAS MALE-201 AIRFRAME & TWIN'}
+                </span>
+              </div>
+              <div>Crankshaft Speed: <span className="text-white font-bold">{Math.round(telemetry.rpm)} RPM</span></div>
+              <div>Thermal Level (CHT): <span className={telemetry.cht > 165 ? 'text-amber-400 font-bold' : 'text-emerald-400 font-bold'}>{telemetry.cht}°C</span></div>
+              <div>Exhaust Temp (EGT): <span className="text-slate-200 font-bold">{telemetry.egt}°C</span></div>
+              <div>Mechanical Vib: <span className="text-white font-bold">{telemetry.vibration} mm/s</span></div>
             </div>
 
             <div className="absolute bottom-2 right-2 bg-aeroblack/80 backdrop-blur-sm border border-aeroborder/80 px-2 py-1 rounded text-[9px] text-slate-400 pointer-events-none">

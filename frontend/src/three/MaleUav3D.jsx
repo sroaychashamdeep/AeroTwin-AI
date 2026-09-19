@@ -527,21 +527,12 @@ export default function MaleUav3D({
 
   if (isEngineOnly) {
     return (
-      <group position={[0, 0, 0]}>
-        {/* High-Visibility Studio Lighting for Engine Inspection */}
-        <ambientLight intensity={0.9} />
-        <directionalLight position={[6, 8, 6]} intensity={1.8} castShadow />
-        <directionalLight position={[-6, -4, -6]} intensity={0.8} />
-        <pointLight position={[0, 2.2, 0]} intensity={1.5} color="#38bdf8" />
-        <PistonEngine3D
-          telemetry={telemetry}
-          health={health}
-          fault={fault}
-          activeFaults={activeFaults}
-          showAnnotations={showSensors}
-          isStandalone={true}
-        />
-      </group>
+      <PistonEngine3D
+        telemetry={telemetry}
+        health={health}
+        fault={fault}
+        activeFaults={activeFaults}
+      />
     );
   }
 
@@ -632,23 +623,40 @@ export default function MaleUav3D({
           </>
         )}
 
-        {/* Aft Fuselage (Engine Nacelle Cowling / Maintenance Inspection Hatch) */}
+        {/* Aft Fuselage (Engine Nacelle Cowling with Semi-Transparent Inspection View) */}
         <mesh
-          position={[0, (isCutaway ? 0.85 : 0.25) + expY * 0.5, -1.8]}
-          rotation={[Math.PI / 2, 0, isCutaway ? -0.4 : 0]}
+          position={[0, 0.25 + expY * 0.5, -1.8]}
+          rotation={[Math.PI / 2, 0, 0]}
           onClick={() => onSelectPart && onSelectPart('engine_bay')}
         >
-          <cylinderGeometry args={[0.65, 0.85, 2.6, 32]} />
+          <cylinderGeometry args={[0.70, 0.88, 2.6, 32]} />
           <meshStandardMaterial
             color={engineColor}
             metalness={0.8}
             roughness={0.2}
-            transparent={isTransparent}
-            opacity={isCutaway ? 0.3 : (isWireframe ? 0.8 : 1.0)}
-            wireframe={isWireframe || isCutaway}
+            transparent={true}
+            opacity={isCutaway ? 0.2 : (selectedPart === 'engine_bay' ? 0.35 : 0.65)}
+            wireframe={isWireframe}
             emissive={isThermal && cht > 165 ? '#7f1d1d' : '#000000'}
             emissiveIntensity={isThermal && cht > 165 ? 0.8 : 0}
           />
+        </mesh>
+
+        {/* Engine Bay Top Transparent Inspection Canopy (Reveals internal Rotax 914/915 powerplant) */}
+        <mesh position={[0, 1.02 + expY * 0.55, -1.8]} rotation={[Math.PI / 2, 0, 0]}>
+          <boxGeometry args={[0.95, 2.3, 0.08]} />
+          <meshStandardMaterial
+            color="#38bdf8"
+            metalness={0.9}
+            roughness={0.1}
+            transparent={true}
+            opacity={0.35}
+          />
+        </mesh>
+        {/* Inspection Canopy Gold-Anodized Perimeter Frame */}
+        <mesh position={[0, 1.05 + expY * 0.55, -1.8]} rotation={[Math.PI / 2, 0, 0]}>
+          <boxGeometry args={[1.02, 2.38, 0.05]} />
+          <meshStandardMaterial color="#facc15" metalness={0.8} roughness={0.25} wireframe={true} />
         </mesh>
 
         {/* Tactical Roundels */}
@@ -943,15 +951,12 @@ export default function MaleUav3D({
 
         {/* 6. INTERNAL ROTAX 914/915 TURBO DIGITAL TWIN */}
         <group position={[0, 0.22, -1.6 + expAftZ * 0.4]} scale={[0.58, 0.58, 0.58]}>
-          {/* Internal Engine Bay Point Light for High Visibility */}
-          <pointLight position={[0, 0.8, 0]} intensity={isCutaway ? 2.8 : 0.9} distance={4.5} color={cht > 165 ? '#f59e0b' : '#38bdf8'} />
           <PistonEngine3D
             telemetry={telemetry}
             health={health}
             fault={fault}
             activeFaults={activeFaults}
-            showAnnotations={false}
-            isStandalone={false}
+            isEngineRunning={rpm >= 500}
           />
         </group>
 
