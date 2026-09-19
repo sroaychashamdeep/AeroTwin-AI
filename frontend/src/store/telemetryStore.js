@@ -7,13 +7,26 @@ import { io } from 'socket.io-client';
 import { soundFx } from '../utils/soundFx';
 
 const getSocketUrl = () => {
+  // Explicit override via env (e.g. Render/Vercel deployment)
   if (import.meta.env.VITE_WS_URL) return import.meta.env.VITE_WS_URL;
+
   if (typeof window !== 'undefined') {
-    if (window.location.hostname.includes('onrender.com') && !window.location.hostname.includes('backend')) {
+    const { hostname } = window.location;
+
+    // Render.com cloud deployment → dedicated backend service
+    if (hostname.includes('onrender.com') && !hostname.includes('backend')) {
       return 'https://aerotwin-backend.onrender.com';
     }
-    return window.location.origin;
+
+    // ✅ LOCAL + NETWORK IP: Use empty string '' so Socket.IO connects to
+    // the *same* origin (Vite dev server on :3000), and Vite's WebSocket
+    // proxy forwards /socket.io/* → http://127.0.0.1:5000.
+    // This works for both:
+    //   - http://localhost:3000  (direct localhost)
+    //   - http://192.168.x.x:3000  (LAN / network IP access)
+    return '';
   }
+
   return 'http://localhost:5000';
 };
 

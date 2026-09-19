@@ -75,10 +75,11 @@ const PORT = process.env.PORT || 5000;
 
 async function startServer() {
   await db.init();
-  server.listen(PORT, () => {
+  server.listen(PORT, '0.0.0.0', () => {
     console.log(`=======================================================`);
     console.log(` AEROTWIN AI - Ground Control Station Backend Gateway `);
     console.log(` HTTP & WebSocket Server running on port: ${PORT}`);
+    console.log(` Listening on: 0.0.0.0:${PORT} (all interfaces)`);
     console.log(` AI Microservice Target URL: ${process.env.AI_SERVICE_URL || 'http://localhost:8000'}`);
     console.log(`=======================================================`);
   });
