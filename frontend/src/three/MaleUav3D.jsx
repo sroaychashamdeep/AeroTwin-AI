@@ -262,7 +262,7 @@ export default function MaleUav3D({
     }
 
     // Target kinematic variables
-    let uavY = 1.35;
+    let uavY = 3.2;           // <<< CRUISE ALTITUDE — plenty of space above grid
     let uavZ = 0.0;
     let pitchDeg = 0.0;
     let rollDeg = 0.0;
@@ -304,7 +304,7 @@ export default function MaleUav3D({
         slipstreamScale = 1.4;
       } else if (t < 5.2) {
         const prog = (t - 2.8) / 2.4;
-        uavY = prog * 0.85;
+        uavY = prog * 2.0;           // <<< lifts to 2.0 at rotation peak
         uavZ = -2.0 - prog * 1.5;
         pitchDeg = prog * 13.5;
         rollDeg = Math.sin(prog * Math.PI) * 1.2;
@@ -317,7 +317,7 @@ export default function MaleUav3D({
         slipstreamScale = 1.6;
       } else if (t < 8.2) {
         const prog = (t - 5.2) / 3.0;
-        uavY = 0.85 + prog * 0.5;
+        uavY = 2.0 + prog * 1.2;     // <<< climbs from 2.0 → 3.2
         uavZ = -3.5 + prog * 3.5;
         pitchDeg = 13.5 - prog * 12.5;
         rollDeg = Math.sin(prog * Math.PI * 1.5) * 1.0;
@@ -329,7 +329,7 @@ export default function MaleUav3D({
         vortexIntensity = (1.0 - prog) * 0.6;
         slipstreamScale = 1.2;
       } else {
-        uavY = 1.35;
+        uavY = 3.2;
         uavZ = 0.0;
         pitchDeg = 1.0;
         gearTarget = 0.0;
@@ -343,7 +343,7 @@ export default function MaleUav3D({
     } else if (activeSubMode === 'LAND') {
       if (t < 3.4) {
         const prog = t / 3.4;
-        uavY = 1.35 - prog * 1.23;
+        uavY = 3.2 - prog * 3.2;    // <<< descends from 3.2 → 0
         uavZ = -2.0 + prog * 2.0;
         pitchDeg = -4.2 + Math.sin(prog * Math.PI) * 0.4;
         rollDeg = Math.sin(prog * 3.0) * 1.2;
@@ -401,7 +401,7 @@ export default function MaleUav3D({
       }
     } else {
       const flightTime = state.clock.elapsedTime;
-      uavY = 1.35 + Math.sin(flightTime * 0.7) * 0.05;
+      uavY = 3.2 + Math.sin(flightTime * 0.7) * 0.08;  // <<< cruise float at 3.2
       uavZ = 0.0;
       pitchDeg = 0.8 + Math.sin(flightTime * 0.5) * 0.7;
       rollDeg = Math.sin(flightTime * 0.35) * 2.2;

@@ -506,8 +506,8 @@ export default function DashboardPage({ onOpenFaultModal }) {
               <Canvas
                 key={dashboard3DMode}
                 camera={{
-                  position: dashboard3DMode === 'ENGINE_ONLY' ? [4.5, 3.2, 3.8] : [6.5, 4.5, 6.5],
-                  fov: dashboard3DMode === 'ENGINE_ONLY' ? 48 : 45
+                  position: dashboard3DMode === 'ENGINE_ONLY' ? [4.5, 3.2, 3.8] : [7.5, 6.5, 8.5],
+                  fov: dashboard3DMode === 'ENGINE_ONLY' ? 48 : 48
                 }}
                 gl={{ antialias: true, alpha: false }}
               >
