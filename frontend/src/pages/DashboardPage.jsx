@@ -8,6 +8,7 @@ import { useTelemetryStore } from '../store/telemetryStore';
 import GaugeCard from '../components/GaugeCard';
 import HealthScoreRing from '../components/HealthScoreRing';
 import MaleUav3D from '../three/MaleUav3D';
+import PistonEngine3D from '../three/PistonEngine3D';
 import FlightDynamicsBar from '../components/FlightDynamicsBar';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
@@ -81,7 +82,7 @@ export default function DashboardPage({ onOpenFaultModal }) {
   } = useTelemetryStore();
 
   const [flightMode, setFlightMode] = useState('CRUISE');
-  const [dashboard3DMode, setDashboard3DMode] = useState('ENGINE_ONLY'); // 'ENGINE_ONLY', 'XRAY_CUTAWAY', 'FULL_UAV'
+  const [dashboard3DMode, setDashboard3DMode] = useState('FULL_UAV'); // 'FULL_UAV' | 'ENGINE_ONLY'
   const [flightTelemetry, setFlightTelemetry] = useState({
     phase: 'CRUISE',
     phaseLabel: 'AIRBORNE CRUISE',
@@ -431,49 +432,35 @@ export default function DashboardPage({ onOpenFaultModal }) {
           <div className="flex items-center justify-between text-xs font-bold text-slate-300 pb-1 border-b border-aeroborder">
             <div className="flex items-center space-x-2">
               <span>3D DIGITAL TWIN SYNCHRONIZATION</span>
-              {/* 3D View Mode Quick Switcher */}
-              <div className="flex items-center space-x-1 bg-slate-900/90 p-0.5 rounded border border-aeroborder text-[10px]">
-                <button
-                  onClick={() => {
-                    soundFx.playClick('toggle');
-                    setDashboard3DMode('ENGINE_ONLY');
-                  }}
-                  className={`px-2 py-0.5 rounded font-bold transition flex items-center space-x-1 ${
-                    dashboard3DMode === 'ENGINE_ONLY'
-                      ? 'bg-sky-600 text-white shadow'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
-                  title="View High-Fidelity 3D Rotax Piston Engine Digital Twin"
-                >
-                  <span>⚙️ PROPER 3D ENGINE</span>
-                </button>
-                <button
-                  onClick={() => {
-                    soundFx.playClick('toggle');
-                    setDashboard3DMode('XRAY_CUTAWAY');
-                  }}
-                  className={`px-2 py-0.5 rounded font-bold transition flex items-center space-x-1 ${
-                    dashboard3DMode === 'XRAY_CUTAWAY'
-                      ? 'bg-sky-600 text-white shadow'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
-                  title="View Engine Bay Inside UAV with Transparent Nacelle"
-                >
-                  <span>🔍 ENGINE BAY</span>
-                </button>
+              {/* 3D View Mode — 2 Options */}
+              <div className="flex items-center space-x-1 bg-slate-900/90 p-0.5 rounded-lg border border-aeroborder text-[10px]">
                 <button
                   onClick={() => {
                     soundFx.playClick('toggle');
                     setDashboard3DMode('FULL_UAV');
                   }}
-                  className={`px-2 py-0.5 rounded font-bold transition flex items-center space-x-1 ${
+                  className={`px-2.5 py-1 rounded-md font-bold transition flex items-center space-x-1 ${
                     dashboard3DMode === 'FULL_UAV'
-                      ? 'bg-sky-600 text-white shadow'
-                      : 'text-slate-400 hover:text-white'
+                      ? 'bg-sky-600 text-white shadow-md'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-800'
                   }`}
-                  title="View Full UAV Airframe"
+                  title="View TAPAS MALE-201 UAV 3D Airframe"
                 >
-                  <span>🛩️ FULL UAV</span>
+                  <span>🛩️</span><span>MALE UAV</span>
+                </button>
+                <button
+                  onClick={() => {
+                    soundFx.playClick('toggle');
+                    setDashboard3DMode('ENGINE_ONLY');
+                  }}
+                  className={`px-2.5 py-1 rounded-md font-bold transition flex items-center space-x-1 ${
+                    dashboard3DMode === 'ENGINE_ONLY'
+                      ? 'bg-emerald-600 text-white shadow-md'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                  }`}
+                  title="View Rotax 912/914 Engine 3D Digital Twin"
+                >
+                  <span>⚙️</span><span>ENGINE</span>
                 </button>
               </div>
             </div>
@@ -499,24 +486,34 @@ export default function DashboardPage({ onOpenFaultModal }) {
             <Canvas
               key={dashboard3DMode}
               camera={{
-                position: dashboard3DMode === 'ENGINE_ONLY' ? [4.2, 3.0, 4.6] : [6.5, 4.5, 6.5],
-                fov: dashboard3DMode === 'ENGINE_ONLY' ? 40 : 45
+                position: dashboard3DMode === 'ENGINE_ONLY' ? [3.8, 2.6, 3.0] : [6.5, 4.5, 6.5],
+                fov: dashboard3DMode === 'ENGINE_ONLY' ? 44 : 45
               }}
             >
-              <ambientLight intensity={0.7} />
-              <directionalLight position={[10, 10, 5]} intensity={1.4} />
-              <directionalLight position={[-10, -5, -5]} intensity={0.6} />
+              <ambientLight intensity={dashboard3DMode === 'ENGINE_ONLY' ? 1.0 : 0.7} />
+              <directionalLight position={[10, 10, 5]} intensity={dashboard3DMode === 'ENGINE_ONLY' ? 1.8 : 1.4} />
+              <directionalLight position={[-8, -4, -5]} intensity={0.5} />
               <pointLight position={[0, 3, 0]} intensity={1.2} color="#38bdf8" />
-              <MaleUav3D
-                telemetry={telemetry}
-                health={health}
-                fault={fault}
-                activeFaults={activeFaults}
-                viewMode={dashboard3DMode}
-                renderMode={dashboard3DMode === 'XRAY_CUTAWAY' ? 'XRAY_CUTAWAY' : 'REALISTIC'}
-                flightMode={flightMode}
-                onFlightTelemetryUpdate={setFlightTelemetry}
-              />
+              {dashboard3DMode === 'ENGINE_ONLY' ? (
+                <PistonEngine3D
+                  telemetry={telemetry}
+                  health={health}
+                  fault={fault}
+                  activeFaults={activeFaults}
+                  isEngineRunning={engineState === 'RUNNING'}
+                />
+              ) : (
+                <MaleUav3D
+                  telemetry={telemetry}
+                  health={health}
+                  fault={fault}
+                  activeFaults={activeFaults}
+                  viewMode={dashboard3DMode}
+                  renderMode="REALISTIC"
+                  flightMode={flightMode}
+                  onFlightTelemetryUpdate={setFlightTelemetry}
+                />
+              )}
               <OrbitControls enablePan={true} enableZoom={true} enableRotate={true} autoRotate={false} />
             </Canvas>
 

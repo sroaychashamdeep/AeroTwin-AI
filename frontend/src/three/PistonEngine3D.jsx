@@ -1,66 +1,57 @@
 /**
- * AEROTWIN AI - High-Fidelity 3D Aero Piston Engine Digital Twin
- * Three.js / React Three Fiber Procedural Aerospace Powerplant
- * Rotax 914 / 915 iS Architecture: 4-Cylinder Turbocharged Opposed Boxer Aero Engine
+ * AEROTWIN AI — High-Fidelity Rotax 912/914 Flat-4 Boxer Engine 3D Model
+ * Matches reference wireframe: 4-cylinder opposed, 2-blade prop, reduction gearbox,
+ * twin magnetos, pushrod tubes, wiring harness, oil sump.
  */
 
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
 import * as THREE from 'three';
 
-// Individual Cylinder with Reciprocating Piston, Dual Spark Plugs & Combustion Glow
-function CylinderAssembly({
-  position,
-  rotation,
-  cylinderNumber,
-  pistonOffset,
-  isLeftBank,
-  healthStatus,
-  cht,
-  egt,
-  isEngineRunning,
-  isEngineStarting,
-  rpm,
-  activeFaults
-}) {
-  const pistonRef = useRef();
-  const connectingRodRef = useRef();
-  const flameRef = useRef();
+// ─── Utility: reusable Tube curve ────────────────────────────────────────────
+function CurveTube({ points, radius = 0.025, color = '#1e293b', segments = 20, metalness = 0.7, roughness = 0.4 }) {
+  const curve = useMemo(() => {
+    const v = points.map(p => new THREE.Vector3(...p));
+    return new THREE.CatmullRomCurve3(v);
+  }, []);
+  const geo = useMemo(() => new THREE.TubeGeometry(curve, segments, radius, 8, false), [curve, radius, segments]);
+  return (
+    <mesh geometry={geo}>
+      <meshStandardMaterial color={color} metalness={metalness} roughness={roughness} />
+    </mesh>
+  );
+}
 
+// ─── Individual Air-Cooled Cylinder (bulbous, finned, like the reference) ────
+function BoxerCylinder({ position, rotation = [0, 0, 0], cylinderNumber, pistonOffset, isLeftBank, cht = 145, egt = 800, isEngineRunning, isEngineStarting, activeFaults = [] }) {
+  const pistonRef = useRef();
+  const conrodRef = useRef();
+  const flameRef = useRef();
   const [hovered, setHovered] = useState(false);
 
-  // Dynamic thermal color scaling based on real Cylinder Head Temperature
-  const getCylinderColor = () => {
-    if (cht > 185 || healthStatus === 'CRITICAL') return '#ef4444'; // Red (Overheating)
-    if (cht > 165 || healthStatus === 'WARNING') return '#f59e0b'; // Amber
-    return '#334155'; // Metallic Titanium Slate
-  };
+  const isCritical = cht > 185 || activeFaults.some(f => f?.cylinder === cylinderNumber);
+  const isWarning = cht > 165;
 
-  const getExhaustColor = () => {
-    if (egt > 870) return '#ef4444'; // Glowing red hot
-    if (egt > 820) return '#f97316'; // Hot amber
-    return '#475569'; // Steel
-  };
+  const cylColor = isCritical ? '#dc2626' : isWarning ? '#d97706' : '#374151';
+  const cylEmissive = isCritical ? '#7f1d1d' : isWarning ? '#451a03' : '#000000';
+  const cylEmissiveInt = isCritical ? 0.8 : isWarning ? 0.4 : 0;
+
+  // Cylinder barrel length along local X axis
+  const barrelLen = 1.5;
+  const sign = isLeftBank ? -1 : 1;
 
   useFrame((state, delta) => {
     const angle = pistonOffset.current;
     if (pistonRef.current) {
-      // Reciprocating piston displacement: stroke = 0.5 units
-      const strokeDisplacement = Math.sin(angle) * 0.42;
-      pistonRef.current.position.x = (isLeftBank ? -1 : 1) * (0.85 + strokeDisplacement);
-
-      // Connecting rod angular oscillation
-      if (connectingRodRef.current) {
-        connectingRodRef.current.rotation.z = Math.cos(angle) * 0.25 * (isLeftBank ? -1 : 1);
-      }
+      pistonRef.current.position.x = sign * (0.6 + Math.sin(angle) * 0.38);
     }
-
-    // Combustion chamber flash (flashes during power stroke when engine is running)
+    if (conrodRef.current) {
+      conrodRef.current.rotation.z = Math.cos(angle) * 0.22 * sign;
+    }
     if (flameRef.current) {
       if (isEngineRunning || isEngineStarting) {
-        const firingIntensity = Math.max(0, Math.sin(angle));
-        flameRef.current.intensity = firingIntensity * (egt > 820 ? 3.0 : 1.8);
+        flameRef.current.intensity = Math.max(0, Math.sin(angle)) * (egt > 820 ? 3.5 : 2.0);
       } else {
         flameRef.current.intensity = 0;
       }
@@ -69,503 +60,502 @@ function CylinderAssembly({
 
   return (
     <group position={position} rotation={rotation}>
-      {/* 1. Main Outer Cylinder Barrel with Machined Cooling Fins */}
-      <mesh castShadow receiveShadow position={[isLeftBank ? -1.25 : 1.25, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
-        <cylinderGeometry args={[0.72, 0.74, 1.45, 24]} />
+      {/* === Cylinder Barrel (main tube) === */}
+      <mesh rotation={[0, 0, Math.PI / 2]}>
+        <cylinderGeometry args={[0.68, 0.72, barrelLen, 28]} />
         <meshStandardMaterial
-          color={getCylinderColor()}
-          metalness={0.82}
-          roughness={0.25}
-          emissive={cht > 175 ? '#7f1d1d' : '#000000'}
-          emissiveIntensity={cht > 175 ? 0.7 : 0}
+          color={cylColor}
+          metalness={0.85}
+          roughness={0.22}
+          emissive={cylEmissive}
+          emissiveIntensity={cylEmissiveInt}
         />
       </mesh>
 
-      {/* 2. Concentric Circumferential Cooling Fins */}
-      {[-0.45, -0.3, -0.15, 0, 0.15, 0.3, 0.45].map((finY, idx) => (
-        <mesh key={idx} position={[isLeftBank ? -1.25 : 1.25, finY, 0]} rotation={[0, 0, Math.PI / 2]}>
-          <cylinderGeometry args={[0.86, 0.86, 0.04, 24]} />
-          <meshStandardMaterial color="#1e293b" metalness={0.92} roughness={0.18} />
+      {/* === Cooling Fins (circumferential) === */}
+      {[-0.55, -0.38, -0.22, -0.06, 0.1, 0.26, 0.42, 0.58].map((x, i) => (
+        <mesh key={i} position={[x, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
+          <cylinderGeometry args={[0.84, 0.84, 0.035, 28]} />
+          <meshStandardMaterial color="#1e293b" metalness={0.92} roughness={0.15} />
         </mesh>
       ))}
 
-      {/* 3. Cast Aluminum Cylinder Head Cover with Valve Rocker Bulges */}
-      <mesh position={[isLeftBank ? -2.05 : 2.05, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
-        <cylinderGeometry args={[0.74, 0.74, 0.25, 24]} />
-        <meshStandardMaterial color="#0f172a" metalness={0.88} roughness={0.2} />
+      {/* === Cylinder Head (dome end) === */}
+      <mesh position={[sign * 0.82, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
+        <cylinderGeometry args={[0.7, 0.7, 0.28, 28]} />
+        <meshStandardMaterial color="#111827" metalness={0.9} roughness={0.18} />
       </mesh>
-      {/* Valve Rocker Cover Details */}
-      <mesh position={[isLeftBank ? -2.2 : 2.2, 0.2, 0]} rotation={[0, 0, Math.PI / 2]}>
-        <boxGeometry args={[0.2, 0.35, 0.55]} />
-        <meshStandardMaterial color="#334155" metalness={0.7} roughness={0.3} />
+      {/* Head fin ring */}
+      {[-0.05, 0.08].map((off, i) => (
+        <mesh key={i} position={[sign * (0.82 + off), 0, 0]} rotation={[0, 0, Math.PI / 2]}>
+          <cylinderGeometry args={[0.76, 0.76, 0.03, 28]} />
+          <meshStandardMaterial color="#0f172a" metalness={0.9} roughness={0.2} />
+        </mesh>
+      ))}
+
+      {/* === Rocker Cover (top flat cover) === */}
+      <mesh position={[sign * 1.0, 0.18, 0]}>
+        <boxGeometry args={[0.28, 0.26, 0.6]} />
+        <meshStandardMaterial color="#1e3a5f" metalness={0.75} roughness={0.3} />
       </mesh>
 
-      {/* 4. Combustion Chamber Internal Flame Light */}
+      {/* === Dual Spark Plugs === */}
+      {[0.28, -0.28].map((zOff, i) => (
+        <group key={i} position={[sign * 0.9, 0.68, zOff]} rotation={[0, 0, isLeftBank ? -0.3 : 0.3]}>
+          <mesh>
+            <cylinderGeometry args={[0.05, 0.05, 0.28, 10]} />
+            <meshStandardMaterial color="#e2e8f0" metalness={0.92} roughness={0.1} />
+          </mesh>
+          {/* Ignition lead */}
+          <mesh position={[0, 0.2, 0]}>
+            <cylinderGeometry args={[0.025, 0.025, 0.14, 8]} />
+            <meshStandardMaterial color="#ca8a04" roughness={0.5} />
+          </mesh>
+        </group>
+      ))}
+
+      {/* === Pushrod Tube === */}
+      <mesh position={[sign * 0.5, 0.55, 0.15]} rotation={[0, 0, isLeftBank ? -0.15 : 0.15]}>
+        <cylinderGeometry args={[0.045, 0.045, 0.95, 10]} />
+        <meshStandardMaterial color="#475569" metalness={0.8} roughness={0.3} />
+      </mesh>
+
+      {/* === Combustion flash light === */}
       <pointLight
         ref={flameRef}
-        position={[isLeftBank ? -1.8 : 1.8, 0, 0]}
+        position={[sign * 0.78, 0, 0]}
         color={egt > 840 ? '#f97316' : '#38bdf8'}
-        distance={2.5}
+        distance={2.2}
         intensity={0}
       />
 
-      {/* 5. Reciprocating Forged Piston & Wrist Pin */}
-      <group ref={pistonRef} position={[isLeftBank ? -0.85 : 0.85, 0, 0]}>
+      {/* === Reciprocating Piston === */}
+      <group ref={pistonRef} position={[sign * 0.6, 0, 0]}>
         <mesh rotation={[0, 0, Math.PI / 2]}>
-          <cylinderGeometry args={[0.65, 0.65, 0.52, 22]} />
-          <meshStandardMaterial color="#cbd5e1" metalness={0.96} roughness={0.12} />
+          <cylinderGeometry args={[0.62, 0.62, 0.48, 22]} />
+          <meshStandardMaterial color="#cbd5e1" metalness={0.97} roughness={0.1} />
         </mesh>
-        {/* Piston Crown Rings */}
-        {[-0.15, 0, 0.15].map((ringX, idx) => (
-          <mesh key={idx} position={[ringX, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
-            <cylinderGeometry args={[0.66, 0.66, 0.03, 22]} />
-            <meshStandardMaterial color="#475569" metalness={0.9} roughness={0.2} />
-          </mesh>
-        ))}
       </group>
 
-      {/* 6. Connecting Rod to Crankcase */}
-      <group ref={connectingRodRef} position={[isLeftBank ? -0.4 : 0.4, 0, 0]}>
-        <mesh rotation={[0, 0, Math.PI / 2]}>
-          <boxGeometry args={[0.15, 0.85, 0.12]} />
+      {/* === Connecting Rod === */}
+      <group ref={conrodRef} position={[0, 0, 0]}>
+        <mesh position={[sign * 0.3, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
+          <boxGeometry args={[0.12, 0.7, 0.1]} />
           <meshStandardMaterial color="#64748b" metalness={0.9} roughness={0.2} />
         </mesh>
       </group>
 
-      {/* 7. Dual Spark Plugs (Rotax Dual Ignition - 2 Plugs per Cylinder) */}
-      {/* Top Spark Plug */}
-      <group position={[isLeftBank ? -1.9 : 1.9, 0.62, 0.25]} rotation={[0, 0, isLeftBank ? -0.4 : 0.4]}>
-        <mesh>
-          <cylinderGeometry args={[0.07, 0.07, 0.32, 12]} />
-          <meshStandardMaterial color="#e2e8f0" metalness={0.9} roughness={0.1} />
-        </mesh>
-        <mesh position={[0, 0.18, 0]}>
-          <cylinderGeometry args={[0.05, 0.05, 0.14, 12]} />
-          <meshStandardMaterial color="#f59e0b" metalness={0.3} roughness={0.4} />
-        </mesh>
-        {/* High-Tension Ignition Lead Wire */}
-        <mesh position={[0, 0.35, -0.15]} rotation={[0.6, 0, 0]}>
-          <cylinderGeometry args={[0.025, 0.025, 0.45, 8]} />
-          <meshStandardMaterial color="#eab308" roughness={0.5} />
-        </mesh>
-      </group>
-      {/* Bottom Spark Plug */}
-      <group position={[isLeftBank ? -1.9 : 1.9, -0.62, -0.25]} rotation={[0, 0, isLeftBank ? 0.4 : -0.4]}>
-        <mesh>
-          <cylinderGeometry args={[0.07, 0.07, 0.32, 12]} />
-          <meshStandardMaterial color="#e2e8f0" metalness={0.9} roughness={0.1} />
-        </mesh>
-        <mesh position={[0, -0.18, 0]}>
-          <cylinderGeometry args={[0.05, 0.05, 0.14, 12]} />
-          <meshStandardMaterial color="#f59e0b" metalness={0.3} roughness={0.4} />
-        </mesh>
-      </group>
-
-      {/* 8. Tuned Stainless Steel Exhaust Runner */}
-      <group position={[isLeftBank ? -1.25 : 1.25, -0.75, 0.35]} rotation={[Math.PI / 3.2, 0, isLeftBank ? -0.15 : 0.15]}>
-        <mesh>
-          <cylinderGeometry args={[0.18, 0.18, 1.1, 16]} />
-          <meshStandardMaterial
-            color={getExhaustColor()}
-            metalness={0.75}
-            roughness={0.25}
-            emissive={egt > 840 ? '#b91c1c' : '#000000'}
-            emissiveIntensity={egt > 840 ? 0.75 : 0}
-          />
-        </mesh>
-        {/* Exhaust Mounting Flange with Studs */}
-        <mesh position={[0, 0.5, 0]}>
-          <cylinderGeometry args={[0.26, 0.26, 0.08, 16]} />
-          <meshStandardMaterial color="#1e293b" metalness={0.85} roughness={0.3} />
-        </mesh>
-      </group>
-
-      {/* 9. Cylinder Identification & Thermocouple Sensor Beacon */}
-      <mesh
-        position={[isLeftBank ? -2.25 : 2.25, 0.45, 0]}
-        onPointerOver={(e) => {
-          e.stopPropagation();
-          setHovered(true);
-        }}
-        onPointerOut={() => setHovered(false)}
-      >
-        <sphereGeometry args={[0.14, 16, 16]} />
-        <meshStandardMaterial
-          color={cht > 175 ? '#ef4444' : (cht > 160 ? '#f59e0b' : '#10b981')}
-          emissive={cht > 175 ? '#ef4444' : (cht > 160 ? '#f59e0b' : '#10b981')}
-          emissiveIntensity={hovered ? 2.5 : 1.2}
-        />
-      </mesh>
-
-      {/* Floating 3D Cylinder Head Badge (Only visible on hover to avoid blocking 3D view) */}
+      {/* === Hover label (cylinder badge) === */}
       {hovered && (
-        <Html distanceFactor={12} position={[isLeftBank ? -2.4 : 2.4, 0.7, 0]} center>
-          <div className="px-2 py-1 rounded text-[9px] font-mono font-bold whitespace-nowrap shadow-xl border border-sky-400 bg-slate-950/95 text-sky-200 pointer-events-none">
+        <Html distanceFactor={10} position={[sign * 1.2, 1.1, 0]} center>
+          <div className="px-2 py-1 rounded text-[9px] font-mono font-bold whitespace-nowrap border border-sky-400 bg-slate-950/95 text-sky-200 pointer-events-none shadow-xl">
             <div className="flex items-center space-x-1.5">
-              <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: cht > 175 ? '#ef4444' : '#10b981' }} />
+              <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: isCritical ? '#ef4444' : '#10b981' }} />
               <span>CYL #{cylinderNumber}</span>
               <span className="text-white font-bold ml-1">{Number(cht).toFixed(1)}°C</span>
             </div>
           </div>
         </Html>
       )}
+
+      {/* invisible hitbox for hover */}
+      <mesh
+        position={[sign * 0.5, 0, 0]}
+        rotation={[0, 0, Math.PI / 2]}
+        visible={false}
+        onPointerOver={e => { e.stopPropagation(); setHovered(true); }}
+        onPointerOut={() => setHovered(false)}
+      >
+        <cylinderGeometry args={[0.9, 0.9, 1.8, 12]} />
+        <meshStandardMaterial transparent opacity={0} />
+      </mesh>
     </group>
   );
 }
 
-// Complete Rotax 914/915 iS Turbocharged Engine Digital Twin
-export default function PistonEngine3D({ telemetry, health, fault, activeFaults, isEngineRunning: isRunningProp }) {
+// ─── Main Engine Component ────────────────────────────────────────────────────
+export default function PistonEngine3D({ telemetry, health, fault, activeFaults = [], isEngineRunning: isRunningProp }) {
   const crankRef = useRef();
-  const turboCompressorRef = useRef();
-  const propHubRef = useRef();
-  const angleRef = useRef(0);
+  const propRef = useRef();
+  const gearRef = useRef();
 
-  const rpm = telemetry?.rpm !== undefined ? telemetry.rpm : 4800;
-  const cht = telemetry?.cht || 142.4;
-  const egt = telemetry?.egt || 795.0;
-  const oilP = telemetry?.oil_pressure !== undefined ? telemetry.oil_pressure : 4.2;
-  const oilT = telemetry?.oil_temperature || 92.5;
-  const fuelFlow = telemetry?.fuel_flow || 18.2;
-  const isEngineOff = rpm === 0;
+  // Firing angle references for all 4 cylinders (0°, 180°, 90°, 270°)
+  const p1 = useRef(0);
+  const p2 = useRef(Math.PI);
+  const p3 = useRef(Math.PI / 2);
+  const p4 = useRef(Math.PI * 1.5);
+
+  const rpm    = telemetry?.rpm         !== undefined ? telemetry.rpm         : 4800;
+  const cht    = telemetry?.cht         || 145;
+  const egt    = telemetry?.egt         || 800;
+  const oilP   = telemetry?.oil_pressure !== undefined ? telemetry.oil_pressure : 4.2;
+  const fuelFlow = telemetry?.fuel_flow || 18.5;
+
+  const isEngineOff      = rpm === 0;
   const isEngineStarting = rpm > 0 && rpm < 500;
-  const isEngineRunning = isRunningProp !== undefined ? isRunningProp : (rpm >= 500);
+  const isEngineRunning  = isRunningProp !== undefined ? isRunningProp : rpm >= 500;
 
-  const healthStatus =
-    health?.overall_health < 70 ? 'CRITICAL' : (health?.overall_health < 85 ? 'WARNING' : 'NOMINAL');
-
-  // Opposed 4-Cylinder Firing Offsets (0°, 180°, 90°, 270°)
-  const p1Offset = useRef(0);
-  const p2Offset = useRef(Math.PI);
-  const p3Offset = useRef(Math.PI / 2);
-  const p4Offset = useRef(Math.PI * 1.5);
+  const healthStatus = health?.overall_health < 70 ? 'CRITICAL' : health?.overall_health < 85 ? 'WARNING' : 'NOMINAL';
 
   useFrame((state, delta) => {
-    // Angular velocity proportional to physical engine RPM
-    const angularSpeed = (rpm / 60) * Math.PI * 0.5 * delta;
-    angleRef.current += angularSpeed;
-
-    p1Offset.current = angleRef.current;
-    p2Offset.current = angleRef.current + Math.PI;
-    p3Offset.current = angleRef.current + Math.PI / 2;
-    p4Offset.current = angleRef.current + Math.PI * 1.5;
-
-    if (crankRef.current) {
-      crankRef.current.rotation.z = angleRef.current;
+    const rps = (rpm / 60) * delta * Math.PI * 2;
+    // Crankshaft
+    if (crankRef.current && isEngineRunning) crankRef.current.rotation.x += rps;
+    // Prop (via reduction gear ~2.43:1 ratio typical Rotax)
+    if (propRef.current) {
+      if (isEngineRunning) propRef.current.rotation.x += rps / 2.43;
+      else if (isEngineStarting) propRef.current.rotation.x += rps * 0.5;
     }
-    if (turboCompressorRef.current) {
-      // Turbocharger spins at ~3.2x crankshaft frequency
-      turboCompressorRef.current.rotation.y += angularSpeed * 3.2;
-    }
-    if (propHubRef.current) {
-      // Gearbox reduction: 1 : 2.43 ratio for Rotax 914
-      propHubRef.current.rotation.z = angleRef.current / 2.43;
-    }
+    // Firing offsets
+    const crankSpeed = rps;
+    [p1, p2, p3, p4].forEach(p => { p.current += crankSpeed; });
   });
 
+  const metalAlu = { metalness: 0.88, roughness: 0.18 };
+  const metalSteel = { metalness: 0.92, roughness: 0.12 };
+
   return (
-    <group position={[0, 0, 0]}>
-      {/* ========================================================================= */}
-      {/* 1. CHROMOLY TUBULAR ENGINE MOUNTING TRUSS (AEROSPACE CRADLE)              */}
-      {/* ========================================================================= */}
-      <group position={[0, 0, 0]}>
-        {/* Diagonal Steel Tube Braces */}
-        {[
-          { pos: [-1.2, 0.8, -1.8], rot: [0.35, -0.4, 0], len: 2.6 },
-          { pos: [1.2, 0.8, -1.8], rot: [0.35, 0.4, 0], len: 2.6 },
-          { pos: [-1.2, -0.8, -1.8], rot: [-0.35, -0.4, 0], len: 2.6 },
-          { pos: [1.2, -0.8, -1.8], rot: [-0.35, 0.4, 0], len: 2.6 },
-          { pos: [0, 1.2, -1.5], rot: [0.2, 0, 0], len: 2.4 },
-          { pos: [0, -1.2, -1.5], rot: [-0.2, 0, 0], len: 2.4 }
-        ].map((truss, idx) => (
-          <mesh key={idx} position={truss.pos} rotation={truss.rot}>
-            <cylinderGeometry args={[0.045, 0.045, truss.len, 12]} />
-            <meshStandardMaterial color="#475569" metalness={0.85} roughness={0.25} />
-          </mesh>
-        ))}
+    <group position={[0, 0, 0]} scale={[0.88, 0.88, 0.88]}>
 
-        {/* Firewall Mounting Isolation Dampeners */}
-        {[-1.3, 1.3].map((mountX, i) =>
-          [-0.9, 0.9].map((mountY, j) => (
-            <mesh key={`${i}-${j}`} position={[mountX, mountY, -2.6]}>
-              <cylinderGeometry args={[0.12, 0.12, 0.18, 16]} />
-              <meshStandardMaterial color="#0f172a" roughness={0.8} />
-            </mesh>
-          ))
-        )}
-      </group>
-
-      {/* ========================================================================= */}
-      {/* 2. CENTRAL CRANKCASE MAIN BLOCK (ALUMINUM ALLOY ENGINE CORE)             */}
-      {/* ========================================================================= */}
-      <group position={[0, 0, 0]}>
-        <mesh castShadow receiveShadow position={[0, 0, 0]}>
-          <boxGeometry args={[1.65, 1.9, 4.4]} />
-          <meshStandardMaterial
-            color="#1e293b"
-            metalness={0.88}
-            roughness={0.22}
-          />
-        </mesh>
-
-        {/* Crankcase Stiffening Ribs */}
-        {[-1.6, -0.8, 0, 0.8, 1.6].map((ribZ, idx) => (
-          <mesh key={idx} position={[0, 0.96, ribZ]}>
-            <boxGeometry args={[1.5, 0.08, 0.12]} />
-            <meshStandardMaterial color="#334155" metalness={0.9} roughness={0.15} />
-          </mesh>
-        ))}
-
-        {/* Rotax Manufacturer Spec Plaque */}
-        <mesh position={[0.83, 0.3, 0.5]} rotation={[0, Math.PI / 2, 0]}>
-          <planeGeometry args={[0.7, 0.35]} />
-          <meshStandardMaterial color="#0284c7" metalness={0.9} roughness={0.1} />
-        </mesh>
-
-        {/* Central Hardened Rotating Crankshaft Axis */}
-        <mesh ref={crankRef} position={[0, 0, 0]} rotation={[Math.PI / 2, 0, 0]}>
-          <cylinderGeometry args={[0.38, 0.38, 4.8, 24]} />
-          <meshStandardMaterial color="#94a3b8" metalness={0.95} roughness={0.1} />
-        </mesh>
-      </group>
-
-      {/* ========================================================================= */}
-      {/* 3. PROPELLER GEARBOX REDUCTION UNIT (AFT PUSHER SHAFT)                    */}
-      {/* ========================================================================= */}
-      <group position={[0, 0, 2.5]}>
-        {/* Reduction Gearbox Bellhousing */}
-        <mesh rotation={[Math.PI / 2, 0, 0]}>
-          <cylinderGeometry args={[0.62, 0.78, 0.9, 24]} />
-          <meshStandardMaterial color="#0f172a" metalness={0.92} roughness={0.15} />
-        </mesh>
-
-        {/* Propeller Drive Output Shaft */}
-        <mesh ref={propHubRef} position={[0, 0, 0.55]} rotation={[Math.PI / 2, 0, 0]}>
-          <cylinderGeometry args={[0.24, 0.24, 0.75, 20]} />
-          <meshStandardMaterial color="#e2e8f0" metalness={0.98} roughness={0.08} />
-        </mesh>
-
-        {/* Drive Flange with 6 Titanium Bolts */}
-        <mesh position={[0, 0, 0.95]} rotation={[Math.PI / 2, 0, 0]}>
-          <cylinderGeometry args={[0.52, 0.52, 0.12, 24]} />
-          <meshStandardMaterial color="#64748b" metalness={0.9} roughness={0.1} />
-        </mesh>
-      </group>
-
-      {/* ========================================================================= */}
-      {/* 4. 4-CYLINDER OPPOSED BOXER ASSEMBLIES (CYLINDERS 1, 2, 3, 4)             */}
-      {/* ========================================================================= */}
-      {/* Left Bank: Cylinders 1 & 3 */}
-      <CylinderAssembly
-        position={[-0.78, 0, 1.1]}
-        rotation={[0, 0, 0]}
-        cylinderNumber={1}
-        pistonOffset={p1Offset}
-        isLeftBank={true}
-        healthStatus={healthStatus}
-        cht={cht + (activeFaults?.injector_degradation ? 24.5 : 0)}
-        egt={egt + (activeFaults?.injector_degradation ? 45.0 : 0)}
-        isEngineRunning={isEngineRunning}
-        isEngineStarting={isEngineStarting}
-        rpm={rpm}
-        activeFaults={activeFaults}
-      />
-      <CylinderAssembly
-        position={[-0.78, 0, -1.0]}
-        rotation={[0, 0, 0]}
-        cylinderNumber={3}
-        pistonOffset={p3Offset}
-        isLeftBank={true}
-        healthStatus={healthStatus}
-        cht={cht}
-        egt={egt}
-        isEngineRunning={isEngineRunning}
-        isEngineStarting={isEngineStarting}
-        rpm={rpm}
-        activeFaults={activeFaults}
-      />
-
-      {/* Right Bank: Cylinders 2 & 4 */}
-      <CylinderAssembly
-        position={[0.78, 0, 0.55]}
-        rotation={[0, 0, 0]}
-        cylinderNumber={2}
-        pistonOffset={p2Offset}
-        isLeftBank={false}
-        healthStatus={healthStatus}
-        cht={cht}
-        egt={egt - (activeFaults?.misfire_severity ? 95.0 : 0)}
-        isEngineRunning={isEngineRunning}
-        isEngineStarting={isEngineStarting}
-        rpm={rpm}
-        activeFaults={activeFaults}
-      />
-      <CylinderAssembly
-        position={[0.78, 0, -1.55]}
-        rotation={[0, 0, 0]}
-        cylinderNumber={4}
-        pistonOffset={p4Offset}
-        isLeftBank={false}
-        healthStatus={healthStatus}
-        cht={cht + (activeFaults?.overheating ? 38.0 : 0)}
-        egt={egt}
-        isEngineRunning={isEngineRunning}
-        isEngineStarting={isEngineStarting}
-        rpm={rpm}
-        activeFaults={activeFaults}
-      />
-
-      {/* ========================================================================= */}
-      {/* 5. ELECTRONIC FUEL INJECTION (EFI) & HIGH-PRESSURE FUEL RAILS             */}
-      {/* ========================================================================= */}
-      <group position={[0, 1.25, -0.2]}>
-        {/* Dual Anodized Blue Fuel Rails */}
-        <mesh position={[-0.65, 0, 0]}>
-          <boxGeometry args={[0.22, 0.22, 3.4]} />
-          <meshStandardMaterial color="#0284c7" metalness={0.9} roughness={0.15} />
-        </mesh>
-        <mesh position={[0.65, 0, 0]}>
-          <boxGeometry args={[0.22, 0.22, 3.4]} />
-          <meshStandardMaterial color="#0284c7" metalness={0.9} roughness={0.15} />
-        </mesh>
-        {/* Cross-Over Fuel Line */}
-        <mesh position={[0, 0.12, 1.3]} rotation={[0, 0, Math.PI / 2]}>
-          <cylinderGeometry args={[0.06, 0.06, 1.4, 16]} />
-          <meshStandardMaterial color="#0284c7" metalness={0.9} roughness={0.15} />
-        </mesh>
-
-        {/* 4 Electronic Solenoid Fuel Injectors */}
-        {[
-          { pos: [-0.65, -0.25, 1.1], id: 1 },
-          { pos: [0.65, -0.25, 0.55], id: 2 },
-          { pos: [-0.65, -0.25, -1.0], id: 3 },
-          { pos: [0.65, -0.25, -1.55], id: 4 }
-        ].map((inj) => (
-          <group key={inj.id} position={inj.pos}>
-            <mesh>
-              <cylinderGeometry args={[0.09, 0.09, 0.42, 16]} />
-              <meshStandardMaterial
-                color={activeFaults?.injector_degradation > 0 && inj.id === 1 ? '#ef4444' : '#38bdf8'}
-                emissive={activeFaults?.injector_degradation > 0 && inj.id === 1 ? '#ef4444' : '#38bdf8'}
-                emissiveIntensity={activeFaults?.injector_degradation > 0 && inj.id === 1 ? 1.4 : 0.3}
-              />
-            </mesh>
-            {/* Electrical Connector Harness */}
-            <mesh position={[0, 0.2, 0.08]} rotation={[0.3, 0, 0]}>
-              <boxGeometry args={[0.09, 0.12, 0.1]} />
-              <meshStandardMaterial color="#0f172a" />
-            </mesh>
-          </group>
-        ))}
-
-        {/* Throttle Body & Butterfly Valve Actuator */}
-        <mesh position={[0, 0.3, -1.4]}>
-          <cylinderGeometry args={[0.32, 0.32, 0.6, 20]} />
-          <meshStandardMaterial color="#475569" metalness={0.8} roughness={0.2} />
-        </mesh>
-      </group>
-
-      {/* ========================================================================= */}
-      {/* 6. TURBOCHARGER, INTERCOOLER & PNEUMATIC WASTEGATE ASSEMBLY               */}
-      {/* ========================================================================= */}
-      <group position={[0, 0.35, -2.6]}>
-        {/* Hot Turbine Volute (Exhaust Side) */}
-        <mesh rotation={[0, Math.PI / 2, 0]}>
-          <torusGeometry args={[0.65, 0.28, 20, 32]} />
-          <meshStandardMaterial
-            color={egt > 830 ? '#b45309' : '#334155'}
-            metalness={0.82}
-            roughness={0.28}
-            emissive={egt > 850 ? '#991b1b' : '#000000'}
-            emissiveIntensity={egt > 850 ? 0.65 : 0}
-          />
-        </mesh>
-
-        {/* Cold Compressor Housing (Fresh Air Side) */}
-        <mesh position={[0, 0, 0.55]} rotation={[0, Math.PI / 2, 0]}>
-          <torusGeometry args={[0.55, 0.24, 18, 28]} />
-          <meshStandardMaterial color="#0284c7" metalness={0.85} roughness={0.2} />
-        </mesh>
-
-        {/* High-Speed Rotating Compressor Impeller */}
-        <mesh ref={turboCompressorRef} position={[0, 0, 0.62]} rotation={[Math.PI / 2, 0, 0]}>
-          <cylinderGeometry args={[0.42, 0.52, 0.3, 20]} />
-          <meshStandardMaterial color="#e0f2fe" metalness={0.96} roughness={0.08} />
-        </mesh>
-
-        {/* Turbocharger Center Housing & Oil Cooling Lines */}
-        <mesh position={[0, 0, 0.28]}>
-          <cylinderGeometry args={[0.22, 0.22, 0.45, 16]} />
+      {/* ══════════════════════════════════════════════════════════════
+          1. CRANKCASE — Central engine block (magnesium/aluminum casting)
+      ══════════════════════════════════════════════════════════════ */}
+      <mesh castShadow receiveShadow>
+        <boxGeometry args={[1.2, 0.9, 1.0]} />
+        <meshStandardMaterial color="#334155" {...metalAlu} />
+      </mesh>
+      {/* Crankcase side ribs */}
+      {[-0.35, 0, 0.35].map((z, i) => (
+        <mesh key={i} position={[0, 0, z]}>
+          <boxGeometry args={[1.25, 0.12, 0.06]} />
           <meshStandardMaterial color="#1e293b" metalness={0.9} roughness={0.2} />
         </mesh>
+      ))}
 
-        {/* Pneumatic Wastegate Actuator Canister */}
-        <group position={[0.75, 0.35, -0.1]} rotation={[0, -0.3, 0]}>
-          <mesh>
-            <cylinderGeometry args={[0.18, 0.18, 0.42, 16]} />
+      {/* ══════════════════════════════════════════════════════════════
+          2. CRANKSHAFT (visible through crankcase — center shaft)
+      ══════════════════════════════════════════════════════════════ */}
+      <group ref={crankRef}>
+        <mesh rotation={[0, 0, Math.PI / 2]}>
+          <cylinderGeometry args={[0.12, 0.12, 1.4, 18]} />
+          <meshStandardMaterial color="#94a3b8" {...metalSteel} />
+        </mesh>
+        {/* Crankshaft counterweights */}
+        {[-0.3, 0.3].map((x, i) => (
+          <mesh key={i} position={[x, 0.18, 0]} rotation={[0, 0, Math.PI / 2]}>
+            <boxGeometry args={[0.08, 0.36, 0.14]} />
             <meshStandardMaterial color="#64748b" metalness={0.9} roughness={0.15} />
           </mesh>
-          {/* Actuator Operating Rod */}
-          <mesh position={[-0.25, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
-            <cylinderGeometry args={[0.03, 0.03, 0.4, 12]} />
-            <meshStandardMaterial color="#cbd5e1" metalness={0.95} />
+        ))}
+      </group>
+
+      {/* ══════════════════════════════════════════════════════════════
+          3. REDUCTION GEARBOX (front — between engine and prop)
+      ══════════════════════════════════════════════════════════════ */}
+      <group position={[-1.5, 0, 0]}>
+        {/* Gearbox housing */}
+        <mesh rotation={[0, 0, Math.PI / 2]}>
+          <cylinderGeometry args={[0.52, 0.6, 0.55, 28]} />
+          <meshStandardMaterial color="#1e293b" {...metalAlu} />
+        </mesh>
+        {/* Gearbox rear flange */}
+        <mesh position={[0.3, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
+          <cylinderGeometry args={[0.64, 0.64, 0.06, 28]} />
+          <meshStandardMaterial color="#0f172a" metalness={0.88} roughness={0.2} />
+        </mesh>
+        {/* Prop shaft */}
+        <mesh position={[-0.35, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
+          <cylinderGeometry args={[0.14, 0.14, 0.55, 16]} />
+          <meshStandardMaterial color="#94a3b8" {...metalSteel} />
+        </mesh>
+        {/* Bolts around gearbox */}
+        {Array.from({ length: 8 }).map((_, i) => {
+          const a = (i / 8) * Math.PI * 2;
+          return (
+            <mesh key={i} position={[0.28, Math.sin(a) * 0.56, Math.cos(a) * 0.56]} rotation={[0, 0, Math.PI / 2]}>
+              <cylinderGeometry args={[0.04, 0.04, 0.06, 8]} />
+              <meshStandardMaterial color="#475569" metalness={0.95} roughness={0.1} />
+            </mesh>
+          );
+        })}
+      </group>
+
+      {/* ══════════════════════════════════════════════════════════════
+          4. PROPELLER — 2-blade, tapered airfoil cross-section
+      ══════════════════════════════════════════════════════════════ */}
+      <group ref={propRef} position={[-2.25, 0, 0]} rotation={[0, 0, 0]}>
+        {/* Prop hub / spinner */}
+        <mesh rotation={[0, 0, Math.PI / 2]}>
+          <cylinderGeometry args={[0.22, 0.18, 0.35, 20]} />
+          <meshStandardMaterial color="#1e293b" {...metalSteel} />
+        </mesh>
+        <mesh position={[-0.22, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
+          <coneGeometry args={[0.18, 0.3, 20]} />
+          <meshStandardMaterial color="#1e293b" {...metalSteel} />
+        </mesh>
+
+        {/* Blade 1 (top) */}
+        <group rotation={[0, 0, 0]}>
+          {/* Blade root */}
+          <mesh position={[0, 0.22, 0]}>
+            <cylinderGeometry args={[0.1, 0.1, 0.26, 12]} />
+            <meshStandardMaterial color="#334155" {...metalAlu} />
+          </mesh>
+          {/* Blade span — tapered box */}
+          <mesh position={[0, 1.0, 0]} rotation={[0.12, 0, 0]}>
+            <boxGeometry args={[0.06, 1.45, 0.28]} />
+            <meshStandardMaterial color="#475569" metalness={0.78} roughness={0.3} />
+          </mesh>
+          {/* Blade tip */}
+          <mesh position={[0, 1.82, 0.02]} rotation={[0.2, 0, 0]}>
+            <boxGeometry args={[0.05, 0.22, 0.16]} />
+            <meshStandardMaterial color="#374151" metalness={0.78} roughness={0.3} />
           </mesh>
         </group>
 
-        {/* Boost Air Duct to Intercooler */}
-        <mesh position={[0, 0.85, 0.35]} rotation={[0.4, 0, 0]}>
-          <cylinderGeometry args={[0.18, 0.18, 0.9, 16]} />
-          <meshStandardMaterial color="#38bdf8" metalness={0.8} roughness={0.2} />
-        </mesh>
+        {/* Blade 2 (bottom, 180°) */}
+        <group rotation={[Math.PI, 0, 0]}>
+          <mesh position={[0, 0.22, 0]}>
+            <cylinderGeometry args={[0.1, 0.1, 0.26, 12]} />
+            <meshStandardMaterial color="#334155" {...metalAlu} />
+          </mesh>
+          <mesh position={[0, 1.0, 0]} rotation={[0.12, 0, 0]}>
+            <boxGeometry args={[0.06, 1.45, 0.28]} />
+            <meshStandardMaterial color="#475569" metalness={0.78} roughness={0.3} />
+          </mesh>
+          <mesh position={[0, 1.82, 0.02]} rotation={[0.2, 0, 0]}>
+            <boxGeometry args={[0.05, 0.22, 0.16]} />
+            <meshStandardMaterial color="#374151" metalness={0.78} roughness={0.3} />
+          </mesh>
+        </group>
       </group>
 
-      {/* ========================================================================= */}
-      {/* 7. LUBRICATION SYSTEM: DRY SUMP OIL TANK, PUMP & BRAIDED LINES            */}
-      {/* ========================================================================= */}
-      <group position={[0, -1.2, 0]}>
-        {/* Aluminum Lower Oil Sump Pan with Cooling Ribs */}
-        <mesh position={[0, 0, 0]}>
-          <boxGeometry args={[1.45, 0.48, 3.8]} />
-          <meshStandardMaterial
-            color={oilP < 2.5 ? '#ef4444' : (oilP < 3.2 ? '#f59e0b' : '#334155')}
-            metalness={0.82}
-            roughness={0.25}
-            emissive={oilP < 2.5 ? '#7f1d1d' : '#000000'}
-            emissiveIntensity={oilP < 2.5 ? 0.7 : 0}
-          />
-        </mesh>
+      {/* ══════════════════════════════════════════════════════════════
+          5. FOUR BOXER CYLINDERS (flat-4, opposed)
+          Left bank: CYL 1 (front-left) + CYL 3 (rear-left)
+          Right bank: CYL 2 (front-right) + CYL 4 (rear-right)
+      ══════════════════════════════════════════════════════════════ */}
+      {/* CYL 1 — front-left */}
+      <BoxerCylinder
+        position={[-0.3, 0, -0.5]}
+        cylinderNumber={1}
+        pistonOffset={p1}
+        isLeftBank={true}
+        cht={cht}
+        egt={egt}
+        isEngineRunning={isEngineRunning}
+        isEngineStarting={isEngineStarting}
+        activeFaults={activeFaults}
+      />
+      {/* CYL 2 — front-right */}
+      <BoxerCylinder
+        position={[-0.3, 0, 0.5]}
+        cylinderNumber={2}
+        pistonOffset={p2}
+        isLeftBank={false}
+        cht={cht * 0.98}
+        egt={egt * 0.97}
+        isEngineRunning={isEngineRunning}
+        isEngineStarting={isEngineStarting}
+        activeFaults={activeFaults}
+      />
+      {/* CYL 3 — rear-left */}
+      <BoxerCylinder
+        position={[0.45, 0, -0.5]}
+        cylinderNumber={3}
+        pistonOffset={p3}
+        isLeftBank={true}
+        cht={cht * 1.02}
+        egt={egt * 1.03}
+        isEngineRunning={isEngineRunning}
+        isEngineStarting={isEngineStarting}
+        activeFaults={activeFaults}
+      />
+      {/* CYL 4 — rear-right */}
+      <BoxerCylinder
+        position={[0.45, 0, 0.5]}
+        cylinderNumber={4}
+        pistonOffset={p4}
+        isLeftBank={false}
+        cht={cht * 0.99}
+        egt={egt * 1.01}
+        isEngineRunning={isEngineRunning}
+        isEngineStarting={isEngineStarting}
+        activeFaults={activeFaults}
+      />
 
-        {/* Oil Filter Canister */}
-        <mesh position={[0.75, 0.1, 1.2]} rotation={[0, 0, Math.PI / 4]}>
-          <cylinderGeometry args={[0.22, 0.22, 0.55, 20]} />
-          <meshStandardMaterial color="#f97316" metalness={0.6} roughness={0.3} />
-        </mesh>
+      {/* ══════════════════════════════════════════════════════════════
+          6. EXHAUST RUNNERS (4-into-2-into-1 stainless)
+      ══════════════════════════════════════════════════════════════ */}
+      {/* CYL 1 runner */}
+      <CurveTube
+        points={[[-0.3, -0.78, -0.5], [-0.4, -1.1, -0.4], [-0.5, -1.35, 0], [-0.4, -1.45, 0.2]]}
+        radius={0.09}
+        color={egt > 840 ? '#b91c1c' : '#475569'}
+        metalness={0.78}
+        roughness={0.28}
+        segments={16}
+      />
+      {/* CYL 2 runner */}
+      <CurveTube
+        points={[[-0.3, -0.78, 0.5], [-0.4, -1.1, 0.35], [-0.5, -1.35, 0.1], [-0.4, -1.45, 0.2]]}
+        radius={0.09}
+        color={egt > 840 ? '#b91c1c' : '#475569'}
+        metalness={0.78}
+        roughness={0.28}
+        segments={16}
+      />
+      {/* CYL 3 runner */}
+      <CurveTube
+        points={[[0.45, -0.78, -0.5], [0.55, -1.0, -0.35], [0.6, -1.28, 0], [0.55, -1.45, 0.2]]}
+        radius={0.09}
+        color={egt > 840 ? '#b91c1c' : '#475569'}
+        metalness={0.78}
+        roughness={0.28}
+        segments={16}
+      />
+      {/* CYL 4 runner */}
+      <CurveTube
+        points={[[0.45, -0.78, 0.5], [0.55, -1.0, 0.4], [0.6, -1.28, 0.2], [0.55, -1.45, 0.2]]}
+        radius={0.09}
+        color={egt > 840 ? '#b91c1c' : '#475569'}
+        metalness={0.78}
+        roughness={0.28}
+        segments={16}
+      />
+      {/* Collector / muffler */}
+      <mesh position={[0.1, -1.55, 0.2]} rotation={[Math.PI / 2, 0, 0]}>
+        <cylinderGeometry args={[0.14, 0.14, 0.7, 16]} />
+        <meshStandardMaterial color="#374151" metalness={0.82} roughness={0.25} />
+      </mesh>
 
-        {/* Braided Stainless Steel Oil Feed Lines */}
-        <mesh position={[-0.72, 0.45, 0.2]} rotation={[0.1, 0, 0]}>
-          <cylinderGeometry args={[0.045, 0.045, 2.6, 12]} />
-          <meshStandardMaterial color="#94a3b8" metalness={0.92} roughness={0.2} />
-        </mesh>
-      </group>
-
-      {/* ========================================================================= */}
-      {/* 8. WATER/COOLANT CIRCULATION PUMP & DUAL HEAT EXCHANGERS                   */}
-      {/* ========================================================================= */}
-      <group position={[0, -0.6, 2.1]}>
-        {/* Mechanical Coolant Impeller Housing */}
+      {/* ══════════════════════════════════════════════════════════════
+          7. TWIN MAGNETOS (rear of engine)
+      ══════════════════════════════════════════════════════════════ */}
+      {/* Magneto 1 */}
+      <group position={[0.72, 0.28, -0.35]}>
         <mesh rotation={[Math.PI / 2, 0, 0]}>
-          <cylinderGeometry args={[0.35, 0.35, 0.4, 20]} />
-          <meshStandardMaterial color="#1e293b" metalness={0.85} roughness={0.2} />
+          <cylinderGeometry args={[0.22, 0.22, 0.42, 16]} />
+          <meshStandardMaterial color="#1e293b" metalness={0.85} roughness={0.25} />
         </mesh>
-        {/* Coolant Manifold Tubes to Left and Right Banks */}
-        <mesh position={[-0.6, 0.2, -0.4]} rotation={[0, 0.4, Math.PI / 3]}>
-          <cylinderGeometry args={[0.07, 0.07, 1.2, 16]} />
-          <meshStandardMaterial color="#0284c7" metalness={0.7} roughness={0.3} />
-        </mesh>
-        <mesh position={[0.6, 0.2, -0.4]} rotation={[0, -0.4, -Math.PI / 3]}>
-          <cylinderGeometry args={[0.07, 0.07, 1.2, 16]} />
-          <meshStandardMaterial color="#0284c7" metalness={0.7} roughness={0.3} />
+        <mesh position={[0, 0.04, 0.24]} rotation={[Math.PI / 2, 0, 0]}>
+          <cylinderGeometry args={[0.08, 0.08, 0.1, 10]} />
+          <meshStandardMaterial color="#0f172a" metalness={0.9} roughness={0.2} />
         </mesh>
       </group>
+      {/* Magneto 2 */}
+      <group position={[0.72, 0.28, 0.35]}>
+        <mesh rotation={[Math.PI / 2, 0, 0]}>
+          <cylinderGeometry args={[0.22, 0.22, 0.42, 16]} />
+          <meshStandardMaterial color="#1e293b" metalness={0.85} roughness={0.25} />
+        </mesh>
+        <mesh position={[0, 0.04, -0.24]} rotation={[Math.PI / 2, 0, 0]}>
+          <cylinderGeometry args={[0.08, 0.08, 0.1, 10]} />
+          <meshStandardMaterial color="#0f172a" metalness={0.9} roughness={0.2} />
+        </mesh>
+      </group>
+
+      {/* ══════════════════════════════════════════════════════════════
+          8. IGNITION WIRING HARNESS (yellow wires running to cylinders)
+      ══════════════════════════════════════════════════════════════ */}
+      <CurveTube points={[[0.72, 0.28, -0.35], [0.2, 0.55, -0.5], [-0.3, 0.72, -0.5]]} radius={0.02} color="#ca8a04" segments={12} metalness={0.3} roughness={0.6} />
+      <CurveTube points={[[0.72, 0.28, -0.35], [0.55, 0.55, -0.5], [0.45, 0.72, -0.5]]} radius={0.02} color="#ca8a04" segments={12} metalness={0.3} roughness={0.6} />
+      <CurveTube points={[[0.72, 0.28, 0.35], [0.2, 0.55, 0.5], [-0.3, 0.72, 0.5]]} radius={0.02} color="#ca8a04" segments={12} metalness={0.3} roughness={0.6} />
+      <CurveTube points={[[0.72, 0.28, 0.35], [0.55, 0.55, 0.5], [0.45, 0.72, 0.5]]} radius={0.02} color="#ca8a04" segments={12} metalness={0.3} roughness={0.6} />
+
+      {/* ══════════════════════════════════════════════════════════════
+          9. OIL SUMP (bottom)
+      ══════════════════════════════════════════════════════════════ */}
+      <mesh position={[0.08, -0.6, 0]}>
+        <boxGeometry args={[1.05, 0.32, 0.88]} />
+        <meshStandardMaterial color="#0f172a" metalness={0.86} roughness={0.22} />
+      </mesh>
+      {/* Oil drain plug */}
+      <mesh position={[0.08, -0.78, 0.1]} rotation={[Math.PI / 2, 0, 0]}>
+        <cylinderGeometry args={[0.06, 0.06, 0.1, 10]} />
+        <meshStandardMaterial color="#334155" metalness={0.95} roughness={0.1} />
+      </mesh>
+
+      {/* ══════════════════════════════════════════════════════════════
+          10. OIL COOLER / RADIATOR (left side, rear)
+      ══════════════════════════════════════════════════════════════ */}
+      <group position={[0.55, -0.1, -0.92]}>
+        <mesh>
+          <boxGeometry args={[0.5, 0.55, 0.1]} />
+          <meshStandardMaterial color="#1e293b" metalness={0.85} roughness={0.25} />
+        </mesh>
+        {/* Cooler fins */}
+        {Array.from({ length: 6 }).map((_, i) => (
+          <mesh key={i} position={[0, -0.22 + i * 0.09, 0.06]}>
+            <boxGeometry args={[0.48, 0.02, 0.04]} />
+            <meshStandardMaterial color="#374151" metalness={0.9} roughness={0.15} />
+          </mesh>
+        ))}
+        {/* Oil cooler pipes */}
+        <CurveTube points={[[0, 0.25, 0.05], [0, 0.45, 0], [-0.3, 0.6, 0]]} radius={0.04} color="#374151" segments={10} metalness={0.85} roughness={0.2} />
+        <CurveTube points={[[0, -0.25, 0.05], [0, -0.45, 0], [-0.3, -0.5, 0]]} radius={0.04} color="#374151" segments={10} metalness={0.85} roughness={0.2} />
+      </group>
+
+      {/* ══════════════════════════════════════════════════════════════
+          11. CARBURETTOR / THROTTLE BODY (right side rear)
+      ══════════════════════════════════════════════════════════════ */}
+      <group position={[0.6, 0.15, 0.88]}>
+        <mesh rotation={[Math.PI / 2, 0, 0]}>
+          <cylinderGeometry args={[0.18, 0.18, 0.38, 16]} />
+          <meshStandardMaterial color="#334155" metalness={0.8} roughness={0.3} />
+        </mesh>
+        {/* Air intake snorkel */}
+        <mesh position={[0, 0, 0.28]} rotation={[Math.PI / 2, 0, 0]}>
+          <cylinderGeometry args={[0.13, 0.16, 0.35, 14]} />
+          <meshStandardMaterial color="#1e293b" metalness={0.75} roughness={0.35} />
+        </mesh>
+      </group>
+
+      {/* ══════════════════════════════════════════════════════════════
+          12. FUEL / OIL LINES (rubber hoses, various colours)
+      ══════════════════════════════════════════════════════════════ */}
+      {/* Fuel line (blue) */}
+      <CurveTube
+        points={[[0.6, 0.15, 0.88], [0.3, -0.3, 0.7], [0, -0.5, 0.5], [-0.5, -0.4, 0.2]]}
+        radius={0.03}
+        color="#1d4ed8"
+        segments={18}
+        metalness={0.3}
+        roughness={0.7}
+      />
+      {/* Oil pressure line (red) */}
+      <CurveTube
+        points={[[0.08, -0.7, 0.1], [0.3, -0.5, 0.4], [0.5, 0.1, 0.6]]}
+        radius={0.025}
+        color="#dc2626"
+        segments={12}
+        metalness={0.3}
+        roughness={0.7}
+      />
+      {/* Breather hose (black) */}
+      <CurveTube
+        points={[[0.08, -0.55, -0.3], [0.3, -0.4, -0.6], [0.6, -0.2, -0.8]]}
+        radius={0.03}
+        color="#111827"
+        segments={10}
+        metalness={0.3}
+        roughness={0.8}
+      />
+
+      {/* ══════════════════════════════════════════════════════════════
+          13. ENGINE MOUNT FRAME (chromoly tube frame — 4 tubes)
+      ══════════════════════════════════════════════════════════════ */}
+      {[[-0.44, -0.44], [-0.44, 0.44], [0.44, -0.44], [0.44, 0.44]].map(([y, z], i) => (
+        <mesh key={i} position={[0.5, y * 0.65, z * 0.65]} rotation={[0, 0, Math.PI / 2]}>
+          <cylinderGeometry args={[0.04, 0.04, 0.65, 8]} />
+          <meshStandardMaterial color="#374151" metalness={0.9} roughness={0.2} />
+        </mesh>
+      ))}
+      {/* Mount firewall plate */}
+      <mesh position={[0.85, 0, 0]}>
+        <boxGeometry args={[0.06, 0.95, 0.95]} />
+        <meshStandardMaterial color="#0f172a" metalness={0.85} roughness={0.25} />
+      </mesh>
     </group>
   );
 }
