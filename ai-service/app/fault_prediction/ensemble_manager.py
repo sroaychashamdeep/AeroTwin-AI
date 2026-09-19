@@ -156,6 +156,7 @@ class TimeSeriesEnsembleManager:
             "affected_subsystem": subsystem_map.get(final_fault, "Propulsion Subsystem"),
             "model_consensus": model_scores,
             "is_unknown_fault": is_unknown_fault,
+            "class_probabilities": gru_probs,
             "fault_stage": {
                 "stage": stage_num,
                 "name": stage_name,

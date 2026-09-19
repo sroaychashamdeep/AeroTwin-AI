@@ -225,7 +225,23 @@ class SimulatorTelemetrySource extends TelemetrySource {
       filtered_telemetry: frame.measured,
       sensor_diagnostics: { sensor_residuals: {}, faulty_sensors: [], system_confidence: 96.0 },
       anomaly: { anomaly_score: score, isolation_forest_score: score, autoencoder_score: score, classification: isAnom ? 'Warning' : 'Normal', is_anomaly: isAnom, threshold: 0.8 },
-      fault: { primary_fault: isAnom ? 'Injector Abnormality' : 'Healthy', probability: isAnom ? 0.82 : 0.95, severity: isAnom ? 'HIGH' : 'LOW', class_probabilities: {} },
+      fault: {
+        primary_fault: isAnom ? 'Injector Abnormality' : 'Healthy',
+        probability: isAnom ? 0.82 : 0.95,
+        severity: isAnom ? 'HIGH' : 'LOW',
+        class_probabilities: {
+          'Healthy': isAnom ? 0.05 : 0.94,
+          'Injector Abnormality': isAnom ? 0.84 : 0.01,
+          'Misfire': isAnom ? 0.04 : 0.01,
+          'Lubrication Degradation': 0.01,
+          'Combustion Instability': isAnom ? 0.03 : 0.01,
+          'Overheating': 0.01,
+          'Sensor Drift': 0.01,
+          'Sensor Failure': 0.0,
+          'Abnormal Vibration': 0.0,
+          'Electrical System Degradation': 0.0
+        }
+      },
       health: { overall_health: isAnom ? 74.0 : 95.0, degradation_index: isAnom ? 22.0 : 8.0, rul_hours: isAnom ? 92.0 : 182.0, rul_confidence: 88.0, rul_ci_lower: isAnom ? 75.0 : 160.0, rul_ci_upper: isAnom ? 110.0 : 205.0 },
       explanation: { primary_fault: isAnom ? 'Injector Abnormality' : 'Healthy', probability: isAnom ? 0.82 : 0.95, main_contributing_factors: [], historical_trend: 'Stable', narrative_summary: 'Operating with local telemetry fallback.' },
       twin_sync: { status: 'SYNCHRONIZED', sync_percentage: 99.1, latency_ms: 120, last_update_sec_ago: 0.8 }
