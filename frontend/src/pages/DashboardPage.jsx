@@ -482,37 +482,52 @@ export default function DashboardPage({ onOpenFaultModal }) {
           />
 
           {/* 3D Canvas Box */}
-          <div className="h-[370px] bg-aerodark rounded-lg border border-aeroborder relative overflow-hidden flex items-center justify-center">
+          <div className={`h-[370px] rounded-lg border border-aeroborder relative overflow-hidden flex items-center justify-center ${
+            dashboard3DMode === 'ENGINE_ONLY' ? 'bg-[#020617]' : 'bg-aerodark'
+          }`}>
             <Canvas
               key={dashboard3DMode}
               camera={{
-                position: dashboard3DMode === 'ENGINE_ONLY' ? [3.8, 2.6, 3.0] : [6.5, 4.5, 6.5],
-                fov: dashboard3DMode === 'ENGINE_ONLY' ? 44 : 45
+                position: dashboard3DMode === 'ENGINE_ONLY' ? [4.5, 3.2, 3.8] : [6.5, 4.5, 6.5],
+                fov: dashboard3DMode === 'ENGINE_ONLY' ? 48 : 45
               }}
+              gl={{ antialias: true, alpha: false }}
             >
-              <ambientLight intensity={dashboard3DMode === 'ENGINE_ONLY' ? 1.0 : 0.7} />
-              <directionalLight position={[10, 10, 5]} intensity={dashboard3DMode === 'ENGINE_ONLY' ? 1.8 : 1.4} />
-              <directionalLight position={[-8, -4, -5]} intensity={0.5} />
-              <pointLight position={[0, 3, 0]} intensity={1.2} color="#38bdf8" />
               {dashboard3DMode === 'ENGINE_ONLY' ? (
-                <PistonEngine3D
-                  telemetry={telemetry}
-                  health={health}
-                  fault={fault}
-                  activeFaults={activeFaults}
-                  isEngineRunning={engineState === 'RUNNING'}
-                />
+                <>
+                  {/* Dark scene + rim lights for wireframe clarity */}
+                  <color attach="background" args={['#020617']} />
+                  <ambientLight intensity={0.25} />
+                  <directionalLight position={[8, 10, 6]} intensity={1.2} color="#e0f2fe" />
+                  <directionalLight position={[-8, 2, -4]} intensity={0.6} color="#bfdbfe" />
+                  <pointLight position={[0, 4, 0]} intensity={1.5} color="#38bdf8" distance={8} />
+                  <pointLight position={[-3, 0, 0]} intensity={0.8} color="#7dd3fc" distance={6} />
+                  <pointLight position={[2, -1, 2]} intensity={0.5} color="#0ea5e9" distance={5} />
+                  <PistonEngine3D
+                    telemetry={telemetry}
+                    health={health}
+                    fault={fault}
+                    activeFaults={activeFaults}
+                    isEngineRunning={engineState === 'RUNNING'}
+                  />
+                </>
               ) : (
-                <MaleUav3D
-                  telemetry={telemetry}
-                  health={health}
-                  fault={fault}
-                  activeFaults={activeFaults}
-                  viewMode={dashboard3DMode}
-                  renderMode="REALISTIC"
-                  flightMode={flightMode}
-                  onFlightTelemetryUpdate={setFlightTelemetry}
-                />
+                <>
+                  <ambientLight intensity={0.7} />
+                  <directionalLight position={[10, 10, 5]} intensity={1.4} />
+                  <directionalLight position={[-8, -4, -5]} intensity={0.5} />
+                  <pointLight position={[0, 3, 0]} intensity={1.2} color="#38bdf8" />
+                  <MaleUav3D
+                    telemetry={telemetry}
+                    health={health}
+                    fault={fault}
+                    activeFaults={activeFaults}
+                    viewMode={dashboard3DMode}
+                    renderMode="REALISTIC"
+                    flightMode={flightMode}
+                    onFlightTelemetryUpdate={setFlightTelemetry}
+                  />
+                </>
               )}
               <OrbitControls enablePan={true} enableZoom={true} enableRotate={true} autoRotate={false} />
             </Canvas>
