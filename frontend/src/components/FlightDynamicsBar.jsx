@@ -18,8 +18,12 @@ import {
   CircleDot,
   Power,
   Zap,
-  Flame
+  Flame,
+  ChevronLeft,
+  ChevronRight,
+  Navigation
 } from 'lucide-react';
+import { useEffect } from 'react';
 import { soundFx } from '../utils/soundFx';
 import { useTelemetryStore } from '../store/telemetryStore';
 
@@ -34,8 +38,29 @@ export default function FlightDynamicsBar({
     startEngine,
     stopEngine,
     toggleEngine,
-    telemetry
+    telemetry,
+    manualSteerX = 0,
+    steerLeft,
+    steerRight,
+    resetSteer
   } = useTelemetryStore();
+
+  // Keyboard shortcut listener for manual steering (A/D or Left/Right arrows)
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Don't intercept if user is typing in an input
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return;
+      if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
+        steerLeft?.();
+      } else if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
+        steerRight?.();
+      } else if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W' || e.key === 'c' || e.key === 'C') {
+        resetSteer?.();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [steerLeft, steerRight, resetSteer]);
 
   const {
     phase = 'CRUISE',
@@ -250,6 +275,58 @@ export default function FlightDynamicsBar({
           <RotateCw className="w-3.5 h-3.5 text-purple-400" />
           <span className="hidden sm:inline">AUTO CYCLE</span>
         </button>
+
+        <div className="h-4 w-px bg-aeroborder hidden lg:block mx-0.5" />
+
+        {/* Manual Flight Controls: Move Plane Left / Right */}
+        <div className="flex items-center space-x-1 bg-slate-900/90 px-2 py-1 rounded-md border border-aeroborder">
+          <Navigation className="w-3 h-3 text-sky-400" />
+          <span className="text-[9px] font-bold text-sky-300 uppercase tracking-wider hidden sm:inline">
+            MANUAL:
+          </span>
+          <button
+            onClick={steerLeft}
+            className={`px-2 py-0.5 rounded font-bold text-[10px] transition border flex items-center space-x-0.5 ${
+              manualSteerX < -0.1
+                ? 'bg-sky-600 text-white border-sky-400 ring-1 ring-sky-400'
+                : 'bg-aerocard border-aeroborder text-slate-300 hover:text-white hover:border-sky-500'
+            }`}
+            title="Steer / Bank Left (A or ← key)"
+          >
+            <ChevronLeft className="w-3 h-3" />
+            <span>LEFT</span>
+          </button>
+          <button
+            onClick={resetSteer}
+            className={`px-1.5 py-0.5 rounded font-bold text-[9px] transition border ${
+              Math.abs(manualSteerX) <= 0.1
+                ? 'bg-slate-700 text-emerald-400 border-slate-600'
+                : 'bg-aerocard border-aeroborder text-slate-400 hover:text-white'
+            }`}
+            title="Trim Level / Center Flight Path (W or C key)"
+          >
+            CTR
+          </button>
+          <button
+            onClick={steerRight}
+            className={`px-2 py-0.5 rounded font-bold text-[10px] transition border flex items-center space-x-0.5 ${
+              manualSteerX > 0.1
+                ? 'bg-sky-600 text-white border-sky-400 ring-1 ring-sky-400'
+                : 'bg-aerocard border-aeroborder text-slate-300 hover:text-white hover:border-sky-500'
+            }`}
+            title="Steer / Bank Right (D or → key)"
+          >
+            <span>RIGHT</span>
+            <ChevronRight className="w-3 h-3" />
+          </button>
+
+          {/* Lateral Offset Badge */}
+          {Math.abs(manualSteerX) > 0.05 && (
+            <span className="text-[9px] font-mono px-1 py-0.2 rounded bg-sky-950 text-sky-300 border border-sky-800 ml-1">
+              {manualSteerX < 0 ? `L ${Math.abs(Math.round(manualSteerX * 45))}m` : `R ${Math.round(manualSteerX * 45)}m`}
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Right: Live Flight Dynamics Telemetry HUD */}

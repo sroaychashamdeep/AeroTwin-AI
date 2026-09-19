@@ -10,6 +10,7 @@ import HealthScoreRing from '../components/HealthScoreRing';
 import MaleUav3D from '../three/MaleUav3D';
 import PistonEngine3D from '../three/PistonEngine3D';
 import FlightDynamicsBar from '../components/FlightDynamicsBar';
+import TacticalGpsMap from '../components/TacticalGpsMap';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import { soundFx } from '../utils/soundFx';
@@ -462,6 +463,20 @@ export default function DashboardPage({ onOpenFaultModal }) {
                 >
                   <span>⚙️</span><span>ENGINE</span>
                 </button>
+                <button
+                  onClick={() => {
+                    soundFx.playClick('toggle');
+                    setDashboard3DMode('GPS_MAP');
+                  }}
+                  className={`px-2.5 py-1 rounded-md font-bold transition flex items-center space-x-1 ${
+                    dashboard3DMode === 'GPS_MAP'
+                      ? 'bg-indigo-600 text-white shadow-md'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                  }`}
+                  title="View Tactical GPS Route Map & Last Location"
+                >
+                  <span>🗺️</span><span>GPS MAP</span>
+                </button>
               </div>
             </div>
             <button
@@ -481,77 +496,81 @@ export default function DashboardPage({ onOpenFaultModal }) {
             compact={true}
           />
 
-          {/* 3D Canvas Box */}
-          <div className={`h-[370px] rounded-lg border border-aeroborder relative overflow-hidden flex items-center justify-center ${
-            dashboard3DMode === 'ENGINE_ONLY' ? 'bg-[#020617]' : 'bg-aerodark'
-          }`}>
-            <Canvas
-              key={dashboard3DMode}
-              camera={{
-                position: dashboard3DMode === 'ENGINE_ONLY' ? [4.5, 3.2, 3.8] : [6.5, 4.5, 6.5],
-                fov: dashboard3DMode === 'ENGINE_ONLY' ? 48 : 45
-              }}
-              gl={{ antialias: true, alpha: false }}
-            >
-              {dashboard3DMode === 'ENGINE_ONLY' ? (
-                <>
-                  {/* Dark scene + rim lights for wireframe clarity */}
-                  <color attach="background" args={['#020617']} />
-                  <ambientLight intensity={0.25} />
-                  <directionalLight position={[8, 10, 6]} intensity={1.2} color="#e0f2fe" />
-                  <directionalLight position={[-8, 2, -4]} intensity={0.6} color="#bfdbfe" />
-                  <pointLight position={[0, 4, 0]} intensity={1.5} color="#38bdf8" distance={8} />
-                  <pointLight position={[-3, 0, 0]} intensity={0.8} color="#7dd3fc" distance={6} />
-                  <pointLight position={[2, -1, 2]} intensity={0.5} color="#0ea5e9" distance={5} />
-                  <PistonEngine3D
-                    telemetry={telemetry}
-                    health={health}
-                    fault={fault}
-                    activeFaults={activeFaults}
-                    isEngineRunning={engineState === 'RUNNING'}
-                  />
-                </>
-              ) : (
-                <>
-                  <ambientLight intensity={0.7} />
-                  <directionalLight position={[10, 10, 5]} intensity={1.4} />
-                  <directionalLight position={[-8, -4, -5]} intensity={0.5} />
-                  <pointLight position={[0, 3, 0]} intensity={1.2} color="#38bdf8" />
-                  <MaleUav3D
-                    telemetry={telemetry}
-                    health={health}
-                    fault={fault}
-                    activeFaults={activeFaults}
-                    viewMode={dashboard3DMode}
-                    renderMode="REALISTIC"
-                    flightMode={flightMode}
-                    onFlightTelemetryUpdate={setFlightTelemetry}
-                  />
-                </>
-              )}
-              <OrbitControls enablePan={true} enableZoom={true} enableRotate={true} autoRotate={false} />
-            </Canvas>
+          {/* 3D Canvas Box OR Tactical GPS Route Map */}
+          {dashboard3DMode === 'GPS_MAP' ? (
+            <TacticalGpsMap height="370px" showControls={true} />
+          ) : (
+            <div className={`h-[370px] rounded-lg border border-aeroborder relative overflow-hidden flex items-center justify-center ${
+              dashboard3DMode === 'ENGINE_ONLY' ? 'bg-[#020617]' : 'bg-aerodark'
+            }`}>
+              <Canvas
+                key={dashboard3DMode}
+                camera={{
+                  position: dashboard3DMode === 'ENGINE_ONLY' ? [4.5, 3.2, 3.8] : [6.5, 4.5, 6.5],
+                  fov: dashboard3DMode === 'ENGINE_ONLY' ? 48 : 45
+                }}
+                gl={{ antialias: true, alpha: false }}
+              >
+                {dashboard3DMode === 'ENGINE_ONLY' ? (
+                  <>
+                    {/* Dark scene + rim lights for wireframe clarity */}
+                    <color attach="background" args={['#020617']} />
+                    <ambientLight intensity={0.25} />
+                    <directionalLight position={[8, 10, 6]} intensity={1.2} color="#e0f2fe" />
+                    <directionalLight position={[-8, 2, -4]} intensity={0.6} color="#bfdbfe" />
+                    <pointLight position={[0, 4, 0]} intensity={1.5} color="#38bdf8" distance={8} />
+                    <pointLight position={[-3, 0, 0]} intensity={0.8} color="#7dd3fc" distance={6} />
+                    <pointLight position={[2, -1, 2]} intensity={0.5} color="#0ea5e9" distance={5} />
+                    <PistonEngine3D
+                      telemetry={telemetry}
+                      health={health}
+                      fault={fault}
+                      activeFaults={activeFaults}
+                      isEngineRunning={engineState === 'RUNNING'}
+                    />
+                  </>
+                ) : (
+                  <>
+                    <ambientLight intensity={0.7} />
+                    <directionalLight position={[10, 10, 5]} intensity={1.4} />
+                    <directionalLight position={[-8, -4, -5]} intensity={0.5} />
+                    <pointLight position={[0, 3, 0]} intensity={1.2} color="#38bdf8" />
+                    <MaleUav3D
+                      telemetry={telemetry}
+                      health={health}
+                      fault={fault}
+                      activeFaults={activeFaults}
+                      viewMode={dashboard3DMode}
+                      renderMode="REALISTIC"
+                      flightMode={flightMode}
+                      onFlightTelemetryUpdate={setFlightTelemetry}
+                    />
+                  </>
+                )}
+                <OrbitControls enablePan={true} enableZoom={true} enableRotate={true} autoRotate={false} />
+              </Canvas>
 
-            {/* In-canvas Telemetry Overlay */}
-            <div className="absolute top-2 left-2 bg-aeroblack/85 backdrop-blur-md border border-aeroborder/80 p-2.5 rounded-lg text-[10px] space-y-1 text-slate-300 pointer-events-none shadow-xl">
-              <div className="text-sky-400 font-bold flex items-center space-x-1.5">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                <span>
-                  {dashboard3DMode === 'ENGINE_ONLY'
-                    ? 'ROTAX 914/915 TURBO POWERPLANT TWIN'
-                    : 'TAPAS MALE-201 AIRFRAME & TWIN'}
-                </span>
+              {/* In-canvas Telemetry Overlay */}
+              <div className="absolute top-2 left-2 bg-aeroblack/85 backdrop-blur-md border border-aeroborder/80 p-2.5 rounded-lg text-[10px] space-y-1 text-slate-300 pointer-events-none shadow-xl">
+                <div className="text-sky-400 font-bold flex items-center space-x-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <span>
+                    {dashboard3DMode === 'ENGINE_ONLY'
+                      ? 'ROTAX 914/915 TURBO POWERPLANT TWIN'
+                      : 'TAPAS MALE-201 AIRFRAME & TWIN'}
+                  </span>
+                </div>
+                <div>Crankshaft Speed: <span className="text-white font-bold">{Math.round(telemetry.rpm)} RPM</span></div>
+                <div>Thermal Level (CHT): <span className={telemetry.cht > 165 ? 'text-amber-400 font-bold' : 'text-emerald-400 font-bold'}>{Number(telemetry.cht || 142).toFixed(1)}°C</span></div>
+                <div>Exhaust Temp (EGT): <span className="text-slate-200 font-bold">{Number(telemetry.egt || 795).toFixed(1)}°C</span></div>
+                <div>Mechanical Vib: <span className="text-white font-bold">{Number(telemetry.vibration || 2.15).toFixed(2)} mm/s</span></div>
               </div>
-              <div>Crankshaft Speed: <span className="text-white font-bold">{Math.round(telemetry.rpm)} RPM</span></div>
-              <div>Thermal Level (CHT): <span className={telemetry.cht > 165 ? 'text-amber-400 font-bold' : 'text-emerald-400 font-bold'}>{Number(telemetry.cht || 142).toFixed(1)}°C</span></div>
-              <div>Exhaust Temp (EGT): <span className="text-slate-200 font-bold">{Number(telemetry.egt || 795).toFixed(1)}°C</span></div>
-              <div>Mechanical Vib: <span className="text-white font-bold">{Number(telemetry.vibration || 2.15).toFixed(2)} mm/s</span></div>
-            </div>
 
-            <div className="absolute bottom-2 right-2 bg-aeroblack/80 backdrop-blur-sm border border-aeroborder/80 px-2 py-1 rounded text-[9px] text-slate-400 pointer-events-none">
-              Use mouse to Rotate • Scroll to Zoom
+              <div className="absolute bottom-2 right-2 bg-aeroblack/80 backdrop-blur-sm border border-aeroborder/80 px-2 py-1 rounded text-[9px] text-slate-400 pointer-events-none">
+                Use mouse to Rotate • Scroll to Zoom
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Real-time Rolling Telemetry Chart */}
           <div className="bg-aerocard border border-aeroborder rounded-lg p-3 flex-1 flex flex-col justify-between">

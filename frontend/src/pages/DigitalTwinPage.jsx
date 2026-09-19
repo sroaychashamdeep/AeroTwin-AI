@@ -16,6 +16,7 @@ import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Grid } from '@react-three/drei';
 import MaleUav3D from '../three/MaleUav3D';
 import FlightDynamicsBar from '../components/FlightDynamicsBar';
+import TacticalGpsMap from '../components/TacticalGpsMap';
 import { useTelemetryStore } from '../store/telemetryStore';
 import {
   Box,
@@ -119,7 +120,8 @@ export default function DigitalTwinPage({ onOpenFaultModal }) {
             {[
               { id: 'FULL_UAV', label: 'FULL AIRFRAME' },
               { id: 'XRAY_CUTAWAY', label: 'ENGINE CUTAWAY' },
-              { id: 'ENGINE_ONLY', label: 'ISOLATED ENGINE' }
+              { id: 'ENGINE_ONLY', label: 'ISOLATED ENGINE' },
+              { id: 'GPS_MAP', label: '🗺️ TACTICAL MAP' }
             ].map((mode) => (
               <button
                 key={mode.id}
@@ -325,78 +327,86 @@ export default function DigitalTwinPage({ onOpenFaultModal }) {
             />
           </div>
 
-          <Canvas
-            camera={{ position: cameraPresets[cameraView] || [7.5, 5.0, 8.5], fov: 42 }}
-            gl={{ preserveDrawingBuffer: true }}
-          >
-            {/* Dynamic Lighting matching Vision Environment */}
-            {visionEnv === 'NIGHT' ? (
-              <>
-                <ambientLight intensity={0.15} />
-                <directionalLight position={[10, 14, 10]} intensity={0.35} color="#38bdf8" />
-                <pointLight position={[0, 4, 0]} intensity={2.0} color="#0284c7" />
-              </>
-            ) : visionEnv === 'FLIR_IR' ? (
-              <>
-                <ambientLight intensity={0.35} color="#a1a1aa" />
-                <directionalLight position={[10, 14, 10]} intensity={0.8} color="#e4e4e7" />
-              </>
-            ) : (
-              <>
-                <ambientLight intensity={0.75} />
-                <directionalLight position={[10, 14, 10]} intensity={1.5} castShadow />
-                <directionalLight position={[-10, -6, -6]} intensity={0.6} />
-                <directionalLight position={[0, -10, 0]} intensity={0.3} />
-              </>
-            )}
-
-            <MaleUav3D
-              telemetry={telemetry}
-              health={health}
-              fault={fault}
-              activeFaults={activeFaults}
-              viewMode={viewMode}
-              renderMode={renderMode}
-              visionEnvironment={visionEnv}
-              explodedFactor={explodedFactor}
-              showSensors={showSensors}
-              selectedPart={selectedPart}
-              onSelectPart={setSelectedPart}
-              showGrid={showTacticalGrid}
-              flightMode={flightMode}
-              onFlightTelemetryUpdate={setFlightTelemetry}
-            />
-
-            <OrbitControls enablePan={true} enableZoom={true} enableRotate={true} />
-          </Canvas>
-
-          {/* Floating Live Telemetry HUD */}
-          <div className="absolute top-20 left-4 bg-aerodark/90 backdrop-blur-md border border-aeroborder p-3 rounded-lg text-xs space-y-2 pointer-events-none shadow-xl max-w-xs">
-            <div className="text-sky-400 font-bold border-b border-aeroborder pb-1 flex justify-between">
-              <span>UAV & PROPULSION STATUS</span>
-              <span className="text-emerald-400 font-mono">99.4% SYNC</span>
+          {viewMode === 'GPS_MAP' ? (
+            <div className="w-full h-full p-4 pt-20">
+              <TacticalGpsMap height="100%" showControls={true} />
             </div>
-            <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-slate-300 text-[11px]">
-              <div>CRANK SPEED: <span className="text-white font-bold">{Math.round(telemetry.rpm)} RPM</span></div>
-              <div>POWER: <span className="text-white font-bold">{telemetry.power.toFixed(1)} kW</span></div>
-              <div>CYLINDER CHT: <span className={telemetry.cht > 165 ? 'text-amber-400 font-bold' : 'text-emerald-400'}>{telemetry.cht}°C</span></div>
-              <div>EXHAUST EGT: <span className="text-white font-bold">{telemetry.egt}°C</span></div>
-              <div>OIL PRESS: <span className={telemetry.oil_pressure < 2.5 ? 'text-red-400 font-bold' : 'text-white'}>{telemetry.oil_pressure} bar</span></div>
-              <div>VIBRATION: <span className="text-white font-bold">{telemetry.vibration} mm/s</span></div>
-              <div>PUSHER PROP: <span className="text-sky-300 font-bold">{Math.round(telemetry.rpm / 2.43)} RPM</span></div>
-              <div>AIRSPEED: <span className="text-white font-bold">142 KTAS</span></div>
-            </div>
-          </div>
+          ) : (
+            <>
+              <Canvas
+                camera={{ position: cameraPresets[cameraView] || [7.5, 5.0, 8.5], fov: 42 }}
+                gl={{ preserveDrawingBuffer: true }}
+              >
+                {/* Dynamic Lighting matching Vision Environment */}
+                {visionEnv === 'NIGHT' ? (
+                  <>
+                    <ambientLight intensity={0.15} />
+                    <directionalLight position={[10, 14, 10]} intensity={0.35} color="#38bdf8" />
+                    <pointLight position={[0, 4, 0]} intensity={2.0} color="#0284c7" />
+                  </>
+                ) : visionEnv === 'FLIR_IR' ? (
+                  <>
+                    <ambientLight intensity={0.35} color="#a1a1aa" />
+                    <directionalLight position={[10, 14, 10]} intensity={0.8} color="#e4e4e7" />
+                  </>
+                ) : (
+                  <>
+                    <ambientLight intensity={0.75} />
+                    <directionalLight position={[10, 14, 10]} intensity={1.5} castShadow />
+                    <directionalLight position={[-10, -6, -6]} intensity={0.6} />
+                    <directionalLight position={[0, -10, 0]} intensity={0.3} />
+                  </>
+                )}
 
-          {/* View & Shader Tag Indicator */}
-          <div className="absolute top-20 right-4 bg-aerodark/90 backdrop-blur-md border border-aeroborder px-3 py-1.5 rounded text-[11px] text-sky-400 pointer-events-none font-bold">
-            SHADER: {renderMode.replace('_', ' ')} • ENV: {visionEnv}
-          </div>
+                <MaleUav3D
+                  telemetry={telemetry}
+                  health={health}
+                  fault={fault}
+                  activeFaults={activeFaults}
+                  viewMode={viewMode}
+                  renderMode={renderMode}
+                  visionEnvironment={visionEnv}
+                  explodedFactor={explodedFactor}
+                  showSensors={showSensors}
+                  selectedPart={selectedPart}
+                  onSelectPart={setSelectedPart}
+                  showGrid={showTacticalGrid}
+                  flightMode={flightMode}
+                  onFlightTelemetryUpdate={setFlightTelemetry}
+                />
 
-          {/* Controls Instruction Overlay */}
-          <div className="absolute bottom-4 left-4 bg-aerodark/80 backdrop-blur-sm border border-aeroborder px-3 py-1.5 rounded text-[10px] text-slate-400 pointer-events-none">
-            Click Sensor Pins for Live Holographic Telemetry • Orbit: Left-Click • Pan: Right-Click • Zoom: Scroll
-          </div>
+                <OrbitControls enablePan={true} enableZoom={true} enableRotate={true} />
+              </Canvas>
+
+              {/* Floating Live Telemetry HUD */}
+              <div className="absolute top-20 left-4 bg-aerodark/90 backdrop-blur-md border border-aeroborder p-3 rounded-lg text-xs space-y-2 pointer-events-none shadow-xl max-w-xs">
+                <div className="text-sky-400 font-bold border-b border-aeroborder pb-1 flex justify-between">
+                  <span>UAV & PROPULSION STATUS</span>
+                  <span className="text-emerald-400 font-mono">99.4% SYNC</span>
+                </div>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-slate-300 text-[11px]">
+                  <div>CRANK SPEED: <span className="text-white font-bold">{Math.round(telemetry.rpm)} RPM</span></div>
+                  <div>POWER: <span className="text-white font-bold">{telemetry.power.toFixed(1)} kW</span></div>
+                  <div>CYLINDER CHT: <span className={telemetry.cht > 165 ? 'text-amber-400 font-bold' : 'text-emerald-400'}>{telemetry.cht}°C</span></div>
+                  <div>EXHAUST EGT: <span className="text-white font-bold">{telemetry.egt}°C</span></div>
+                  <div>OIL PRESS: <span className={telemetry.oil_pressure < 2.5 ? 'text-red-400 font-bold' : 'text-white'}>{telemetry.oil_pressure} bar</span></div>
+                  <div>VIBRATION: <span className="text-white font-bold">{telemetry.vibration} mm/s</span></div>
+                  <div>PUSHER PROP: <span className="text-sky-300 font-bold">{Math.round(telemetry.rpm / 2.43)} RPM</span></div>
+                  <div>AIRSPEED: <span className="text-white font-bold">142 KTAS</span></div>
+                </div>
+              </div>
+
+              {/* View & Shader Tag Indicator */}
+              <div className="absolute top-20 right-4 bg-aerodark/90 backdrop-blur-md border border-aeroborder px-3 py-1.5 rounded text-[11px] text-sky-400 pointer-events-none font-bold">
+                SHADER: {renderMode.replace('_', ' ')} • ENV: {visionEnv}
+              </div>
+
+              {/* Controls Instruction Overlay */}
+              <div className="absolute bottom-4 left-4 bg-aerodark/80 backdrop-blur-sm border border-aeroborder px-3 py-1.5 rounded text-[10px] text-slate-400 pointer-events-none">
+                Click Sensor Pins for Live Holographic Telemetry • Orbit: Left-Click • Pan: Right-Click • Zoom: Scroll
+              </div>
+            </>
+          )}
         </div>
 
         {/* Right Inspection & Subsystem Diagnostics Panel (w-80) */}

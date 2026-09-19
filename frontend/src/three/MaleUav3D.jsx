@@ -18,6 +18,7 @@ import { Float, Grid, Html } from '@react-three/drei';
 import * as THREE from 'three';
 import PistonEngine3D from './PistonEngine3D';
 import { soundFx } from '../utils/soundFx';
+import { useTelemetryStore } from '../store/telemetryStore';
 
 // Interactive 3D Telemetry Sensor Hotspot Pin
 function SensorHotspot({
@@ -123,7 +124,8 @@ export default function MaleUav3D({
   onSelectPart,
   showGrid = true,
   flightMode = 'CRUISE', // 'CRUISE', 'TAKEOFF', 'LAND', 'GROUND', 'AUTO_CYCLE'
-  onFlightTelemetryUpdate
+  onFlightTelemetryUpdate,
+  manualSteerX
 }) {
   // References
   const uavRootRef = useRef();
@@ -413,14 +415,20 @@ export default function MaleUav3D({
       slipstreamScale = 1.0;
     }
 
-    // 5. Apply Position & Rotation to UAV Main Group
+    // 5. Apply Position & Rotation to UAV Main Group with Manual Lateral Steering
+    const steerOffset = manualSteerX !== undefined ? manualSteerX : (useTelemetryStore.getState().manualSteerX || 0);
+    const targetX = steerOffset * 3.4; // Lateral displacement in 3D scene (left/right)
+    const steerBank = steerOffset * 18.0; // Dynamic roll into the turn!
+    const steerYaw = -steerOffset * 7.5; // Coordinated rudder yaw
+
     if (uavRootRef.current) {
+      uavRootRef.current.position.x = THREE.MathUtils.lerp(uavRootRef.current.position.x, targetX, 0.08);
       uavRootRef.current.position.y = THREE.MathUtils.lerp(uavRootRef.current.position.y, uavY, 0.12);
       uavRootRef.current.position.z = THREE.MathUtils.lerp(uavRootRef.current.position.z, uavZ, 0.1);
 
       const targetRotX = -THREE.MathUtils.degToRad(pitchDeg);
-      const targetRotZ = THREE.MathUtils.degToRad(rollDeg);
-      const targetRotY = THREE.MathUtils.degToRad(yawDeg);
+      const targetRotZ = THREE.MathUtils.degToRad(rollDeg + steerBank);
+      const targetRotY = THREE.MathUtils.degToRad(yawDeg + steerYaw);
 
       uavRootRef.current.rotation.x = THREE.MathUtils.lerp(uavRootRef.current.rotation.x, targetRotX, 0.12);
       uavRootRef.current.rotation.z = THREE.MathUtils.lerp(uavRootRef.current.rotation.z, targetRotZ, 0.12);
@@ -428,11 +436,12 @@ export default function MaleUav3D({
     }
 
     // 6. Dynamic Aerodynamic Control Surface Deflections
-    const aileronDeflect = THREE.MathUtils.degToRad(rollDeg * 2.5);
+    const effectiveRoll = rollDeg + steerBank;
+    const aileronDeflect = THREE.MathUtils.degToRad(effectiveRoll * 2.2);
     if (rightAileronRef.current) rightAileronRef.current.rotation.x = -aileronDeflect;
     if (leftAileronRef.current) leftAileronRef.current.rotation.x = aileronDeflect;
 
-    const ruddervatorDeflect = THREE.MathUtils.degToRad(pitchDeg * 1.5 + yawDeg * 1.2);
+    const ruddervatorDeflect = THREE.MathUtils.degToRad(pitchDeg * 1.5 + (yawDeg + steerYaw) * 1.2);
     if (rightRuddervatorRef.current) rightRuddervatorRef.current.rotation.x = ruddervatorDeflect;
     if (leftRuddervatorRef.current) leftRuddervatorRef.current.rotation.x = ruddervatorDeflect;
 

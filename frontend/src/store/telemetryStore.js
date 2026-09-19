@@ -163,6 +163,27 @@ export const useTelemetryStore = create((set, get) => {
       sensor_drift: 0.0
     },
 
+    // Manual Lateral Flight Controls & Tactical GPS Navigation
+    manualSteerX: 0.0, // -1.5 (left) to +1.5 (right)
+    manualHeadingOffset: 0.0, // degrees deviation
+    gpsData: {
+      latitude: 14.28426,
+      longitude: 76.58142,
+      lastLocation: '14°17\'03.3"N 76°34\'53.1"E',
+      sector: 'Chitradurga ATR Sector 4',
+      altitudeMsl: 3658,
+      groundSpeedKts: 142,
+      headingDeg: 85,
+      routeProgressPct: 62.4,
+      crossTrackErrorM: 0,
+      activeWaypoint: 'WP-04 [SURVEILLANCE ORBIT]',
+      nextWaypointDistNm: 18.4,
+      etaSec: 466,
+      satellites: 18,
+      hdop: 0.72,
+      gpsFix: '3D DIFFERENTIAL'
+    },
+
     flightParams: {
       throttle: 70.0,
       altitude: 12000.0,
@@ -470,6 +491,77 @@ export const useTelemetryStore = create((set, get) => {
       if (mag === 'OFF' && get().engineState === 'RUNNING') {
         get().stopEngine();
       }
+    },
+
+    // Manual Flight Steering Actions (Move Left / Right)
+    steerLeft: () => {
+      soundFx.playClick('high');
+      set((state) => {
+        const newX = Math.max(-1.5, Number((state.manualSteerX - 0.3).toFixed(2)));
+        const newHdgOffset = Number((state.manualHeadingOffset - 3.0).toFixed(1));
+        const newLon = Number((76.58142 + newX * 0.0035).toFixed(5));
+        return {
+          manualSteerX: newX,
+          manualHeadingOffset: newHdgOffset,
+          gpsData: {
+            ...state.gpsData,
+            longitude: newLon,
+            headingDeg: Math.round(85 + newHdgOffset),
+            crossTrackErrorM: Math.round(newX * 45),
+            lastLocation: `14°17'03.3"N 76°${(34.8 + newX * 0.4).toFixed(1)}'E`
+          }
+        };
+      });
+    },
+
+    steerRight: () => {
+      soundFx.playClick('high');
+      set((state) => {
+        const newX = Math.min(1.5, Number((state.manualSteerX + 0.3).toFixed(2)));
+        const newHdgOffset = Number((state.manualHeadingOffset + 3.0).toFixed(1));
+        const newLon = Number((76.58142 + newX * 0.0035).toFixed(5));
+        return {
+          manualSteerX: newX,
+          manualHeadingOffset: newHdgOffset,
+          gpsData: {
+            ...state.gpsData,
+            longitude: newLon,
+            headingDeg: Math.round(85 + newHdgOffset),
+            crossTrackErrorM: Math.round(newX * 45),
+            lastLocation: `14°17'03.3"N 76°${(34.8 + newX * 0.4).toFixed(1)}'E`
+          }
+        };
+      });
+    },
+
+    resetSteer: () => {
+      soundFx.playClick('toggle');
+      set((state) => ({
+        manualSteerX: 0.0,
+        manualHeadingOffset: 0.0,
+        gpsData: {
+          ...state.gpsData,
+          longitude: 76.58142,
+          headingDeg: 85,
+          crossTrackErrorM: 0,
+          lastLocation: '14°17\'03.3"N 76°34\'53.1"E'
+        }
+      }));
+    },
+
+    setManualSteerX: (val) => {
+      const clamped = Math.max(-1.5, Math.min(1.5, Number(val)));
+      set((state) => ({
+        manualSteerX: clamped,
+        manualHeadingOffset: Number((clamped * 10.0).toFixed(1)),
+        gpsData: {
+          ...state.gpsData,
+          longitude: Number((76.58142 + clamped * 0.0035).toFixed(5)),
+          headingDeg: Math.round(85 + clamped * 10.0),
+          crossTrackErrorM: Math.round(clamped * 45),
+          lastLocation: `14°17'03.3"N 76°${(34.8 + clamped * 0.4).toFixed(1)}'E`
+        }
+      }));
     }
   };
 });
