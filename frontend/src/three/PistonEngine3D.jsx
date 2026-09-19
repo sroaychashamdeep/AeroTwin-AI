@@ -6,7 +6,7 @@
 
 import React, { useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Float, Html } from '@react-three/drei';
+import { Html } from '@react-three/drei';
 import * as THREE from 'three';
 
 // Individual Cylinder with Reciprocating Piston, Dual Spark Plugs & Combustion Glow
@@ -197,22 +197,18 @@ function CylinderAssembly({
         />
       </mesh>
 
-      {/* Floating 3D Cylinder Head Badge */}
-      <Html distanceFactor={14} position={[isLeftBank ? -2.4 : 2.4, 0.7, 0]} center>
-        <div
-          className={`px-2 py-0.8 rounded text-[9px] font-mono font-bold whitespace-nowrap shadow-lg border backdrop-blur-md pointer-events-none transition ${
-            hovered || cht > 170
-              ? 'bg-slate-900/95 border-amber-500 text-amber-300 scale-105'
-              : 'bg-slate-950/80 border-slate-700 text-slate-300'
-          }`}
-        >
-          <div className="flex items-center space-x-1">
-            <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: cht > 175 ? '#ef4444' : '#10b981' }} />
-            <span>CYL #{cylinderNumber}</span>
-            <span className="text-white font-bold ml-1">{Math.round(cht)}°C</span>
+      {/* Floating 3D Cylinder Head Badge (Only visible on hover to avoid blocking 3D view) */}
+      {hovered && (
+        <Html distanceFactor={12} position={[isLeftBank ? -2.4 : 2.4, 0.7, 0]} center>
+          <div className="px-2 py-1 rounded text-[9px] font-mono font-bold whitespace-nowrap shadow-xl border border-sky-400 bg-slate-950/95 text-sky-200 pointer-events-none">
+            <div className="flex items-center space-x-1.5">
+              <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: cht > 175 ? '#ef4444' : '#10b981' }} />
+              <span>CYL #{cylinderNumber}</span>
+              <span className="text-white font-bold ml-1">{Number(cht).toFixed(1)}°C</span>
+            </div>
           </div>
-        </div>
-      </Html>
+        </Html>
+      )}
     </group>
   );
 }
@@ -570,66 +566,6 @@ export default function PistonEngine3D({ telemetry, health, fault, activeFaults,
           <meshStandardMaterial color="#0284c7" metalness={0.7} roughness={0.3} />
         </mesh>
       </group>
-
-      {/* ========================================================================= */}
-      {/* 9. FLOATING 3D ROTAX ENGINE DIGITAL TWIN HEALTH HUD                       */}
-      {/* ========================================================================= */}
-      <Float speed={2.5} rotationIntensity={0.15} floatIntensity={0.25}>
-        <Html distanceFactor={13} position={[0, 2.3, 0]} center>
-          <div className="bg-slate-950/90 border border-sky-500/80 p-3 rounded-xl shadow-2xl backdrop-blur-md text-xs font-mono text-white min-w-[240px] pointer-events-none">
-            <div className="flex items-center justify-between border-b border-slate-700/80 pb-1.5 mb-2">
-              <span className="text-sky-400 font-bold flex items-center space-x-1.5">
-                <span
-                  className="w-2 h-2 rounded-full animate-pulse"
-                  style={{ backgroundColor: isEngineRunning ? '#10b981' : (isEngineStarting ? '#f59e0b' : '#ef4444') }}
-                />
-                <span>ROTAX 914/915 iS TURBO</span>
-              </span>
-              <span
-                className={`px-1.5 py-0.2 rounded text-[9px] font-bold ${
-                  healthStatus === 'CRITICAL'
-                    ? 'bg-red-950 text-red-300 border border-red-700'
-                    : healthStatus === 'WARNING'
-                    ? 'bg-amber-950 text-amber-300 border border-amber-700'
-                    : 'bg-emerald-950 text-emerald-300 border border-emerald-700'
-                }`}
-              >
-                {healthStatus}
-              </span>
-            </div>
-
-            <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px]">
-              <div>
-                <span className="text-slate-400 text-[9px] block">ENGINE SPEED:</span>
-                <span className="text-white font-bold text-sm">{Math.round(rpm)} <span className="text-[10px] text-sky-400">RPM</span></span>
-              </div>
-              <div>
-                <span className="text-slate-400 text-[9px] block">HEAD TEMP (CHT):</span>
-                <span className={`font-bold text-sm ${cht > 165 ? 'text-amber-400' : 'text-emerald-400'}`}>
-                  {Math.round(cht)} <span className="text-[10px] text-slate-300">°C</span>
-                </span>
-              </div>
-              <div>
-                <span className="text-slate-400 text-[9px] block">EXHAUST (EGT):</span>
-                <span className={`font-bold text-sm ${egt > 820 ? 'text-amber-400' : 'text-slate-200'}`}>
-                  {Math.round(egt)} <span className="text-[10px] text-slate-300">°C</span>
-                </span>
-              </div>
-              <div>
-                <span className="text-slate-400 text-[9px] block">OIL PRESSURE:</span>
-                <span className={`font-bold text-sm ${oilP < 2.5 ? 'text-red-400' : 'text-emerald-400'}`}>
-                  {oilP} <span className="text-[10px] text-slate-300">bar</span>
-                </span>
-              </div>
-            </div>
-
-            <div className="mt-2 pt-1.5 border-t border-slate-800 text-[10px] text-slate-400 flex justify-between">
-              <span>TURBO BOOST: <strong className="text-sky-400">1.45 bar</strong></span>
-              <span>FLOW: <strong className="text-white">{fuelFlow} L/h</strong></span>
-            </div>
-          </div>
-        </Html>
-      </Float>
     </group>
   );
 }

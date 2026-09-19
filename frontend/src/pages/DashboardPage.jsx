@@ -397,7 +397,7 @@ export default function DashboardPage({ onOpenFaultModal }) {
             <div className="flex justify-between items-center text-[10px] text-slate-400 border-y border-aeroborder/60 py-1">
               <span>STATUS: <strong className={engineState === 'RUNNING' ? 'text-emerald-400' : (engineState === 'STARTING' ? 'text-amber-400' : 'text-slate-500')}>{engineState}</strong></span>
               <span>RPM: <strong className="text-white">{Math.round(telemetry.rpm)}</strong></span>
-              <span>OIL: <strong className={telemetry.oil_pressure < 2.5 ? 'text-red-400' : 'text-emerald-400'}>{telemetry.oil_pressure} bar</strong></span>
+              <span>OIL: <strong className={telemetry.oil_pressure < 2.5 ? 'text-red-400' : 'text-emerald-400'}>{Number(telemetry.oil_pressure || 4.2).toFixed(2)} bar</strong></span>
             </div>
 
             <div className="space-y-1">
@@ -531,9 +531,9 @@ export default function DashboardPage({ onOpenFaultModal }) {
                 </span>
               </div>
               <div>Crankshaft Speed: <span className="text-white font-bold">{Math.round(telemetry.rpm)} RPM</span></div>
-              <div>Thermal Level (CHT): <span className={telemetry.cht > 165 ? 'text-amber-400 font-bold' : 'text-emerald-400 font-bold'}>{telemetry.cht}°C</span></div>
-              <div>Exhaust Temp (EGT): <span className="text-slate-200 font-bold">{telemetry.egt}°C</span></div>
-              <div>Mechanical Vib: <span className="text-white font-bold">{telemetry.vibration} mm/s</span></div>
+              <div>Thermal Level (CHT): <span className={telemetry.cht > 165 ? 'text-amber-400 font-bold' : 'text-emerald-400 font-bold'}>{Number(telemetry.cht || 142).toFixed(1)}°C</span></div>
+              <div>Exhaust Temp (EGT): <span className="text-slate-200 font-bold">{Number(telemetry.egt || 795).toFixed(1)}°C</span></div>
+              <div>Mechanical Vib: <span className="text-white font-bold">{Number(telemetry.vibration || 2.15).toFixed(2)} mm/s</span></div>
             </div>
 
             <div className="absolute bottom-2 right-2 bg-aeroblack/80 backdrop-blur-sm border border-aeroborder/80 px-2 py-1 rounded text-[9px] text-slate-400 pointer-events-none">
