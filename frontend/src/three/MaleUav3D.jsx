@@ -160,6 +160,15 @@ export default function MaleUav3D({
   const egt = telemetry?.egt || 795.0;
   const oilPressure = telemetry?.oil_pressure !== undefined ? telemetry.oil_pressure : 4.2;
 
+  // Active Fault Detection for 3D Drone Digital Twin Visual Reactions
+  const storeFaults = useTelemetryStore((s) => s.activeFaults) || {};
+  const isOverheating = (storeFaults?.overheating || 0) > 0.25 || cht > 165;
+  const isLubrication = (storeFaults?.lubrication_degradation || 0) > 0.25 || oilPressure < 2.5;
+  const isMisfire = (storeFaults?.misfire_severity || 0) > 0.25;
+  const isInjector = (storeFaults?.injector_degradation || 0) > 0.25;
+  const isVibration = (storeFaults?.vibration_fault || 0) > 0.25 || (telemetry?.vibration || 2.15) > 4.5;
+  const hasActiveDefect = isOverheating || isLubrication || isMisfire || isInjector || isVibration;
+
   // Determine effective rendering parameters based on renderMode & visionEnvironment
   const isCutaway = renderMode === 'XRAY_CUTAWAY' || viewMode === 'XRAY_CUTAWAY';
   const isThermal = renderMode === 'THERMAL_HEATMAP';
@@ -292,7 +301,7 @@ export default function MaleUav3D({
       if (t < 2.8) {
         const prog = t / 2.8;
         uavY = 0.0;
-        uavZ = 2.5 - prog * 4.5;
+        uavZ = -2.5 + prog * 4.5;    // Moving FORWARD (+Z) from -2.5 to +2.0
         pitchDeg = 0.0;
         rollDeg = (Math.random() - 0.5) * 0.3;
         gearTarget = 1.0;
@@ -304,8 +313,8 @@ export default function MaleUav3D({
         slipstreamScale = 1.4;
       } else if (t < 5.2) {
         const prog = (t - 2.8) / 2.4;
-        uavY = prog * 2.0;           // <<< lifts to 2.0 at rotation peak
-        uavZ = -2.0 - prog * 1.5;
+        uavY = prog * 2.0;           // Lifts up into air
+        uavZ = 2.0 + prog * 1.5;     // Continues FORWARD (+Z) to +3.5
         pitchDeg = prog * 13.5;
         rollDeg = Math.sin(prog * Math.PI) * 1.2;
         gearTarget = Math.max(0.0, 1.0 - prog * 1.4);
@@ -317,8 +326,8 @@ export default function MaleUav3D({
         slipstreamScale = 1.6;
       } else if (t < 8.2) {
         const prog = (t - 5.2) / 3.0;
-        uavY = 2.0 + prog * 1.2;     // <<< climbs from 2.0 → 3.2
-        uavZ = -3.5 + prog * 3.5;
+        uavY = 2.0 + prog * 1.2;     // Climbs from 2.0 → 3.2
+        uavZ = 3.5 - prog * 3.5;     // Settles smoothly into cruise center (0.0)
         pitchDeg = 13.5 - prog * 12.5;
         rollDeg = Math.sin(prog * Math.PI * 1.5) * 1.0;
         gearTarget = 0.0;
@@ -343,8 +352,8 @@ export default function MaleUav3D({
     } else if (activeSubMode === 'LAND') {
       if (t < 3.4) {
         const prog = t / 3.4;
-        uavY = 3.2 - prog * 3.2;    // <<< descends from 3.2 → 0
-        uavZ = -2.0 + prog * 2.0;
+        uavY = 3.2 - prog * 3.2;    // Descends from 3.2 → 0
+        uavZ = 2.0 - prog * 2.0;
         pitchDeg = -4.2 + Math.sin(prog * Math.PI) * 0.4;
         rollDeg = Math.sin(prog * 3.0) * 1.2;
         gearTarget = Math.min(1.0, prog * 2.2);
@@ -357,7 +366,7 @@ export default function MaleUav3D({
       } else if (t < 4.8) {
         const prog = (t - 3.4) / 1.4;
         uavY = Math.max(0.0, 0.12 * (1.0 - prog));
-        uavZ = prog * 0.8;
+        uavZ = -prog * 0.8;
         pitchDeg = -4.2 + prog * 10.2;
         rollDeg = 0.0;
         gearTarget = 1.0;
@@ -376,7 +385,7 @@ export default function MaleUav3D({
       } else if (t < 7.8) {
         const prog = (t - 4.8) / 3.0;
         uavY = 0.0;
-        uavZ = 0.8 - prog * 0.8;
+        uavZ = -0.8 + prog * 0.8;
         pitchDeg = 6.0 * (1.0 - prog);
         rollDeg = 0.0;
         gearTarget = 1.0;
@@ -422,8 +431,11 @@ export default function MaleUav3D({
     const steerYaw = -steerOffset * 7.5; // Coordinated rudder yaw
 
     if (uavRootRef.current) {
-      uavRootRef.current.position.x = THREE.MathUtils.lerp(uavRootRef.current.position.x, targetX, 0.08);
-      uavRootRef.current.position.y = THREE.MathUtils.lerp(uavRootRef.current.position.y, uavY, 0.12);
+      // Subtle high-frequency airframe tremor when mechanical unbalance or misfire fault is present
+      const vibJitter = (isVibration || isMisfire) ? Math.sin(state.clock.elapsedTime * 85) * 0.012 : 0;
+
+      uavRootRef.current.position.x = THREE.MathUtils.lerp(uavRootRef.current.position.x, targetX, 0.08) + vibJitter * 0.3;
+      uavRootRef.current.position.y = THREE.MathUtils.lerp(uavRootRef.current.position.y, uavY, 0.12) + vibJitter;
       uavRootRef.current.position.z = THREE.MathUtils.lerp(uavRootRef.current.position.z, uavZ, 0.1);
 
       const targetRotX = -THREE.MathUtils.degToRad(pitchDeg);
@@ -655,18 +667,39 @@ export default function MaleUav3D({
         <mesh position={[0, 1.02 + expY * 0.55, -1.8]} rotation={[Math.PI / 2, 0, 0]}>
           <boxGeometry args={[0.95, 2.3, 0.08]} />
           <meshStandardMaterial
-            color="#38bdf8"
+            color={hasActiveDefect ? (isOverheating || isLubrication ? '#ef4444' : '#f59e0b') : '#38bdf8'}
+            emissive={hasActiveDefect ? (isOverheating || isLubrication ? '#b91c1c' : '#d97706') : '#0284c7'}
+            emissiveIntensity={hasActiveDefect ? 1.4 : 0.2}
             metalness={0.9}
             roughness={0.1}
             transparent={true}
-            opacity={0.35}
+            opacity={hasActiveDefect ? 0.75 : 0.35}
           />
         </mesh>
         {/* Inspection Canopy Gold-Anodized Perimeter Frame */}
         <mesh position={[0, 1.05 + expY * 0.55, -1.8]} rotation={[Math.PI / 2, 0, 0]}>
           <boxGeometry args={[1.02, 2.38, 0.05]} />
-          <meshStandardMaterial color="#facc15" metalness={0.8} roughness={0.25} wireframe={true} />
+          <meshStandardMaterial color={hasActiveDefect ? '#ef4444' : '#facc15'} metalness={0.8} roughness={0.25} wireframe={true} />
         </mesh>
+
+        {/* Pulsating 3D Engine Defect Beacon over Engine Nacelle */}
+        {hasActiveDefect && (
+          <group position={[0, 1.35 + expY * 0.55, -1.8]}>
+            <mesh>
+              <sphereGeometry args={[0.15, 16, 16]} />
+              <meshStandardMaterial
+                color={isOverheating || isLubrication ? '#ef4444' : '#f59e0b'}
+                emissive={isOverheating || isLubrication ? '#ef4444' : '#f59e0b'}
+                emissiveIntensity={4.0}
+              />
+            </mesh>
+            <pointLight
+              color={isOverheating || isLubrication ? '#ef4444' : '#f59e0b'}
+              intensity={4.5}
+              distance={4.0}
+            />
+          </group>
+        )}
 
         {/* Tactical Roundels */}
         {!isCutaway && !isWireframe && !isFlirIr && (
@@ -1012,15 +1045,34 @@ export default function MaleUav3D({
           <mesh rotation={[Math.PI / 2, 0, 0]}>
             <coneGeometry args={[0.65, 2.2, 16, 1, true]} />
             <meshStandardMaterial
-              color="#38bdf8"
-              emissive="#0284c7"
-              emissiveIntensity={0.4}
+              color={hasActiveDefect ? (isOverheating ? '#ef4444' : '#f59e0b') : '#38bdf8'}
+              emissive={hasActiveDefect ? '#b45309' : '#0284c7'}
+              emissiveIntensity={hasActiveDefect ? 0.9 : 0.4}
               transparent
-              opacity={0.18}
+              opacity={hasActiveDefect ? 0.45 : 0.18}
               side={THREE.DoubleSide}
             />
           </mesh>
         </group>
+
+        {/* Dynamic Exhaust Defect Smoke Particle Cloud */}
+        {hasActiveDefect && (
+          <group position={[0, 0.26, -3.8 + expAftZ]}>
+            <mesh position={[0, 0.05, -0.6]} scale={[1.1, 1.1, 1.1]}>
+              <sphereGeometry args={[0.26, 10, 10]} />
+              <meshStandardMaterial color="#64748b" transparent opacity={0.5} depthWrite={false} />
+            </mesh>
+            <mesh position={[0.08, 0.15, -1.4]} scale={[1.6, 1.4, 1.6]}>
+              <sphereGeometry args={[0.34, 10, 10]} />
+              <meshStandardMaterial color="#475569" transparent opacity={0.4} depthWrite={false} />
+            </mesh>
+            <mesh position={[-0.05, 0.28, -2.4]} scale={[2.2, 1.8, 2.2]}>
+              <sphereGeometry args={[0.45, 10, 10]} />
+              <meshStandardMaterial color="#334155" transparent opacity={0.28} depthWrite={false} />
+            </mesh>
+            <pointLight position={[0, 0, -0.5]} color="#f97316" intensity={2.0} distance={2.0} />
+          </group>
+        )}
 
         {/* 8. DORSAL NACA ENGINE AIR SCOOP */}
         <mesh position={[0, 0.85 + expY * 0.5, -0.8]} rotation={[-Math.PI / 10, 0, 0]}>

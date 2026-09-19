@@ -28,13 +28,13 @@ import { soundFx } from '../utils/soundFx';
 
 // Tactical Mission Waypoints across Chitradurga Aeronautical Test Range & Bay of Bengal ISR Corridor
 const MISSION_WAYPOINTS = [
-  { id: 'WP-01', name: 'ATR RUNWAY 09', x: 60, y: 220, lat: '14°12\'15"N', lon: '76°32\'10"E', alt: '640m', status: 'PASSED' },
-  { id: 'WP-02', name: 'CLIMB WAYPOINT', x: 120, y: 165, lat: '14°15\'40"N', lon: '76°40\'22"E', alt: '1,800m', status: 'PASSED' },
-  { id: 'WP-03', name: 'INGRESS POINT', x: 210, y: 120, lat: '14°20\'10"N', lon: '76°50\'45"E', alt: '3,658m', status: 'PASSED' },
-  { id: 'WP-04', name: 'ORBIT ALPHA (ACTIVE)', x: 310, y: 110, lat: '14°25\'30"N', lon: '77°02\'15"E', alt: '3,658m', status: 'ACTIVE' },
-  { id: 'WP-05', name: 'SECTOR CHARLIE', x: 410, y: 140, lat: '14°28\'55"N', lon: '77°15\'30"E', alt: '3,658m', status: 'PLANNED' },
-  { id: 'WP-06', name: 'EGRESS CORRIDOR', x: 480, y: 200, lat: '14°22\'10"N', lon: '77°10\'05"E', alt: '2,400m', status: 'PLANNED' },
-  { id: 'WP-07', name: 'TOUCHDOWN 27', x: 540, y: 230, lat: '14°12\'15"N', lon: '76°32\'10"E', alt: '640m', status: 'PLANNED' }
+  { id: 'WP-01', name: 'ATR RUNWAY 09', x: 50, y: 250, lat: '14°12\'15"N', lon: '76°32\'10"E', alt: '640m', status: 'PASSED' },
+  { id: 'WP-02', name: 'CLIMB WAYPOINT', x: 130, y: 220, lat: '14°15\'40"N', lon: '76°40\'22"E', alt: '1,800m', status: 'PASSED' },
+  { id: 'WP-03', name: 'INGRESS POINT', x: 220, y: 190, lat: '14°20\'10"N', lon: '76°50\'45"E', alt: '3,658m', status: 'PASSED' },
+  { id: 'WP-04', name: 'ORBIT ALPHA (ACTIVE)', x: 340, y: 170, lat: '14°25\'30"N', lon: '77°02\'15"E', alt: '3,658m', status: 'ACTIVE' },
+  { id: 'WP-05', name: 'SECTOR CHARLIE', x: 440, y: 175, lat: '14°28\'55"N', lon: '77°15\'30"E', alt: '3,658m', status: 'PLANNED' },
+  { id: 'WP-06', name: 'EGRESS CORRIDOR', x: 510, y: 215, lat: '14°22\'10"N', lon: '77°10\'05"E', alt: '2,400m', status: 'PLANNED' },
+  { id: 'WP-07', name: 'TOUCHDOWN 27', x: 560, y: 255, lat: '14°12\'15"N', lon: '76°32\'10"E', alt: '640m', status: 'PLANNED' }
 ];
 
 export default function TacticalGpsMap({ height = '370px', showControls = true }) {
@@ -62,18 +62,18 @@ export default function TacticalGpsMap({ height = '370px', showControls = true }
   }, []);
 
   // Compute live UAV coordinates based on baseline progress + manual lateral offset
-  const baseUavX = 280;
-  const baseUavY = 114;
+  const baseUavX = 290;
+  const baseUavY = 178;
 
   // Manual lateral shift (left / right in perpendicular axis)
-  const lateralShiftPx = manualSteerX * 28; // moves left (-) or right (+)
+  const lateralShiftPx = manualSteerX * 26; // moves left (-) or right (+)
   const currentUavX = baseUavX;
   const currentUavY = baseUavY + lateralShiftPx;
 
   // Flown route path (from WP-01 up to current UAV position)
-  const flownPathD = `M 60,220 L 120,165 L 210,120 L ${currentUavX},${currentUavY}`;
+  const flownPathD = `M 50,250 L 130,220 L 220,190 L ${currentUavX},${currentUavY}`;
   // Planned remaining route path (from current UAV position to remaining waypoints)
-  const plannedPathD = `M ${currentUavX},${currentUavY} L 310,110 L 410,140 L 480,200 L 540,230`;
+  const plannedPathD = `M ${currentUavX},${currentUavY} L 340,170 L 440,175 L 510,215 L 560,255`;
 
   const heading = Math.round((gpsData.headingDeg || 85) + manualHeadingOffset);
   const crossTrackMeters = Math.round(manualSteerX * 45);
@@ -315,12 +315,10 @@ export default function TacticalGpsMap({ height = '370px', showControls = true }
               </g>
 
               {/* Tactical Callout Box at UAV Position */}
-              <g transform={`translate(${currentUavX + 22}, ${currentUavY - 32})`}>
-                <rect x="0" y="0" width="138" height="42" rx="4" fill="rgba(2,6,23,0.92)" stroke="#0284c7" strokeWidth="1" />
-                <text x="6" y="11" fill="#38bdf8" fontSize="7.5" fontWeight="bold">TAPAS MALE-201 [ID: #01]</text>
-                <text x="6" y="21" fill="#e2e8f0" fontSize="7">LAT: {gpsData.lastLocation?.split(' ')[0] || '14°17\'03"N'}</text>
-                <text x="6" y="30" fill="#e2e8f0" fontSize="7">LON: {gpsData.lastLocation?.split(' ')[1] || '76°34\'53"E'}</text>
-                <text x="6" y="38" fill="#10b981" fontSize="6.5">HDG {heading}° • 142 KTAS • FL120</text>
+              <g transform={`translate(${currentUavX + 18}, ${currentUavY - 24})`}>
+                <rect x="0" y="0" width="112" height="26" rx="4" fill="rgba(2,6,23,0.88)" stroke="#0284c7" strokeWidth="0.8" />
+                <text x="5" y="10" fill="#38bdf8" fontSize="7" fontWeight="bold">TAPAS MALE-201</text>
+                <text x="5" y="20" fill="#10b981" fontSize="6.5">HDG {heading}° • 142 KTAS • FL120</text>
               </g>
 
               {/* Lateral Flight Corridor Offset Guide Lines (Shows left/right deviation) */}
@@ -337,23 +335,23 @@ export default function TacticalGpsMap({ height = '370px', showControls = true }
               )}
             </svg>
 
-            {/* In-Canvas Last Location Floating HUD Pill */}
-            <div className="absolute top-2 left-2 bg-slate-950/90 backdrop-blur-md border border-aeroborder px-2.5 py-2 rounded-lg text-[10px] space-y-1 z-10 shadow-xl max-w-[240px]">
-              <div className="flex items-center justify-between border-b border-aeroborder/80 pb-1">
-                <span className="text-sky-400 font-bold flex items-center space-x-1">
-                  <MapPin className="w-3 h-3 text-red-400" />
+            {/* In-Canvas Last Location Floating HUD Pill (Compact non-blocking glass pill) */}
+            <div className="absolute top-2 left-2 bg-slate-950/80 backdrop-blur-md border border-aeroborder/80 px-2.5 py-1.5 rounded-lg text-[9.5px] space-y-0.5 z-10 shadow-lg max-w-[210px] pointer-events-none">
+              <div className="flex items-center justify-between border-b border-aeroborder/60 pb-0.5">
+                <span className="text-sky-400 font-bold flex items-center space-x-1 text-[9px]">
+                  <MapPin className="w-2.5 h-2.5 text-red-400" />
                   <span>LAST KNOWN LOCATION:</span>
                 </span>
-                <span className="text-[9px] text-emerald-400 font-bold">3D GPS FIX</span>
+                <span className="text-[8px] text-emerald-400 font-bold">3D GPS FIX</span>
               </div>
-              <div className="text-white font-mono text-[11px] font-bold">
+              <div className="text-white font-mono text-[10px] font-bold">
                 {gpsData.lastLocation || '14°17\'03.3"N 76°34\'53.1"E'}
               </div>
-              <div className="grid grid-cols-2 gap-x-2 text-[9px] text-slate-400 pt-0.5">
-                <div>ALT: <strong className="text-white">3,658 m (FL120)</strong></div>
-                <div>SPD: <strong className="text-white">142 KTAS</strong></div>
-                <div>HDG: <strong className="text-sky-400">{heading}° MAG</strong></div>
-                <div>ETA WP-04: <strong className="text-emerald-400">7m 46s</strong></div>
+              <div className="grid grid-cols-2 gap-x-2 text-[8.5px] text-slate-400">
+                <div>ALT: <strong className="text-white">3,658 m</strong></div>
+                <div>SPD: <strong className="text-white">142 KT</strong></div>
+                <div>HDG: <strong className="text-sky-400">{heading}°</strong></div>
+                <div>ETA: <strong className="text-emerald-400">7m 46s</strong></div>
               </div>
             </div>
 

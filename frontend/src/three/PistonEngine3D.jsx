@@ -112,20 +112,29 @@ function GhostBox({ w, h, d, pos = [0,0,0], rot = [0,0,0], ghost = '#0c4a6e', wi
 ───────────────────────────────────────────────────────────────────────── */
 function BoxerCylinder({
   position, cylinderNumber, pistonOffset, isLeftBank,
-  cht = 145, egt = 800, isEngineRunning, isEngineStarting, activeFaults = []
+  cht = 145, egt = 800, isEngineRunning, isEngineStarting, activeFaults = {}
 }) {
   const pistonRef = useRef();
   const flameRef  = useRef();
 
-  const isCritical = cht > 185 ||
-    (Array.isArray(activeFaults) && activeFaults.some(f => typeof f === 'object' && f?.cylinder === cylinderNumber));
-  const isWarning = cht > 165;
+  const faultsObj = typeof activeFaults === 'object' && activeFaults !== null ? activeFaults : {};
+  const isOverheatingFault = (faultsObj.overheating || 0) > 0.25 || cht > 165;
+  const isCyl2Misfire = cylinderNumber === 2 && (faultsObj.misfire_severity || 0) > 0.25;
+  const isCyl3Injector = cylinderNumber === 3 && (faultsObj.injector_degradation || 0) > 0.25;
+
+  const isCritical = cht > 180 || (faultsObj.overheating || 0) > 0.5 || isCyl2Misfire;
+  const isWarning = isOverheatingFault || isCyl3Injector;
   const sign = isLeftBank ? -1 : 1;
 
-  const wireColor  = isCritical ? '#ef4444' : isWarning ? '#f59e0b' : '#22d3ee';
-  const ghostColor = isCritical ? '#450a0a' : '#0c4a6e';
+  const wireColor  = isCritical ? '#ef4444' : isWarning ? '#f97316' : '#22d3ee';
+  const ghostColor = isCritical ? '#7f1d1d' : isWarning ? '#7c2d12' : '#0c4a6e';
 
-  const status = isCritical ? '🔴 CRITICAL' : isWarning ? '🟡 WARNING' : '🟢 NOMINAL';
+  let status = '🟢 NOMINAL';
+  if (isCyl2Misfire) status = '🔴 MISFIRE DETECTED';
+  else if (isCritical) status = '🔴 CRITICAL OVERHEAT';
+  else if (isCyl3Injector) status = '🟡 INJECTOR CLOG';
+  else if (isWarning) status = '🟡 THERMAL WARNING';
+
   const cylSub = `CHT: ${Number(cht).toFixed(1)}°C | EGT: ${Number(egt).toFixed(1)}°C | ${status}`;
 
   useFrame((_, delta) => {
@@ -134,9 +143,16 @@ function BoxerCylinder({
       pistonRef.current.position.x = sign * (0.44 + Math.sin(angle) * 0.3);
     }
     if (flameRef.current) {
-      flameRef.current.intensity = (isEngineRunning || isEngineStarting)
-        ? Math.max(0, Math.sin(angle)) * (egt > 820 ? 4.5 : 2.5)
-        : 0;
+      if (isCyl2Misfire) {
+        // Misfire: flame drops or flickers erratically
+        flameRef.current.intensity = Math.random() > 0.75 ? 1.0 : 0.05;
+        flameRef.current.color.set('#ef4444');
+      } else {
+        flameRef.current.intensity = (isEngineRunning || isEngineStarting)
+          ? Math.max(0, Math.sin(angle)) * (isCritical ? 5.5 : egt > 820 ? 4.5 : 2.5)
+          : 0;
+        flameRef.current.color.set(isCritical ? '#f97316' : '#38bdf8');
+      }
     }
   });
 
@@ -308,11 +324,16 @@ export default function PistonEngine3D({ telemetry, health, activeFaults, isEngi
   const egt  = Number(telemetry?.egt)          || 800;
   const oilP = Number(telemetry?.oil_pressure) || 4.2;
   const fuelFlow = Number(telemetry?.fuel_flow) || 18.5;
-  const safeActiveFaults = Array.isArray(activeFaults) ? activeFaults : [];
+  const faultsObj = typeof activeFaults === 'object' && activeFaults !== null ? activeFaults : {};
+  const isOverheating = (faultsObj.overheating || 0) > 0.25 || cht > 165;
+  const isInjectorFault = (faultsObj.injector_degradation || 0) > 0.25 || fuelFlow > 22;
+  const isMisfire = (faultsObj.misfire_severity || 0) > 0.25;
+  const isLubricationFault = (faultsObj.lubrication_degradation || 0) > 0.25 || oilP < 2.5;
+  const isVibrationFault = (faultsObj.vibration_fault || 0) > 0.25 || Number(telemetry?.vibration || 2.15) > 4.5;
+  const isEngineFaulted = isOverheating || isInjectorFault || isMisfire || isLubricationFault || isVibrationFault;
 
   const isEngineStarting = rpm > 0 && rpm < 500;
   const isEngineRunning  = isRunningProp !== undefined ? isRunningProp : rpm >= 500;
-  const engineStatusText = isEngineRunning ? '▶ RUNNING' : isEngineStarting ? '⟳ STARTING' : '◼ STOPPED';
 
   useFrame((_, delta) => {
     const rps = (rpm / 60) * delta * Math.PI * 2;
@@ -333,32 +354,16 @@ export default function PistonEngine3D({ telemetry, health, activeFaults, isEngi
     <group scale={[0.9, 0.9, 0.9]}>
 
       {/* ══ GRID FLOOR ══════════════════════════════════════════════════ */}
-      <gridHelper args={[12, 24, '#1e3a5f', '#0f172a']} position={[0, -1.9, 0]} />
+      <gridHelper args={[12, 24, isEngineFaulted ? '#7f1d1d' : '#1e3a5f', '#0f172a']} position={[0, -1.9, 0]} />
       <mesh position={[0, -1.91, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <planeGeometry args={[12, 12]} />
         <meshBasicMaterial color="#020617" transparent opacity={0.9} />
       </mesh>
 
-      {/* ══ STATUS BANNER (always visible, compact) ═════════════════════ */}
-      <Html distanceFactor={12} position={[0, 2.0, 0]} center>
-        <div style={{
-          pointerEvents: 'none',
-          fontFamily: 'monospace',
-          fontSize: 9,
-          fontWeight: 700,
-          color: isEngineRunning ? '#10b981' : isEngineStarting ? '#f59e0b' : '#64748b',
-          background: 'rgba(2,6,23,0.88)',
-          border: `1px solid ${isEngineRunning ? '#10b981' : isEngineStarting ? '#f59e0b' : '#334155'}55`,
-          borderRadius: 4,
-          padding: '3px 8px',
-          whiteSpace: 'nowrap',
-        }}>
-          ⚙ ROTAX 912/914 iS — {engineStatusText}
-          <span style={{ color: '#64748b', fontWeight: 400, marginLeft: 6 }}>
-            {Math.round(rpm)} RPM | {Number(cht).toFixed(1)}°C CHT | OIL {Number(oilP).toFixed(2)} bar
-          </span>
-        </div>
-      </Html>
+      {/* ══ 3D FAULT ILLUMINATION ═══════════════════════════════════════ */}
+      {isEngineFaulted && (
+        <pointLight position={[0, 0.8, 0]} color={isOverheating || isLubricationFault ? '#ef4444' : '#f59e0b'} intensity={4.5} distance={4.5} />
+      )}
 
       {/* ══ CRANKCASE ═══════════════════════════════════════════════════ */}
       <HoverPart label="CRANKCASE" sub="Magnesium-aluminium alloy casting | Houses crankshaft + bearings" color="#38bdf8" labelPos={[0, 1.0, 0.6]}>
@@ -445,36 +450,36 @@ export default function PistonEngine3D({ telemetry, health, activeFaults, isEngi
       <BoxerCylinder position={[-0.26, 0, -0.46]} cylinderNumber={1} pistonOffset={p1}
         isLeftBank={true} cht={cht} egt={egt}
         isEngineRunning={isEngineRunning} isEngineStarting={isEngineStarting}
-        activeFaults={safeActiveFaults} />
+        activeFaults={faultsObj} />
       <BoxerCylinder position={[-0.26, 0,  0.46]} cylinderNumber={2} pistonOffset={p2}
         isLeftBank={false} cht={cht * 0.98} egt={egt * 0.97}
         isEngineRunning={isEngineRunning} isEngineStarting={isEngineStarting}
-        activeFaults={safeActiveFaults} />
+        activeFaults={faultsObj} />
       <BoxerCylinder position={[ 0.42, 0, -0.46]} cylinderNumber={3} pistonOffset={p3}
         isLeftBank={true} cht={cht * 1.02} egt={egt * 1.03}
         isEngineRunning={isEngineRunning} isEngineStarting={isEngineStarting}
-        activeFaults={safeActiveFaults} />
+        activeFaults={faultsObj} />
       <BoxerCylinder position={[ 0.42, 0,  0.46]} cylinderNumber={4} pistonOffset={p4}
         isLeftBank={false} cht={cht * 0.99} egt={egt * 1.01}
         isEngineRunning={isEngineRunning} isEngineStarting={isEngineStarting}
-        activeFaults={safeActiveFaults} />
+        activeFaults={faultsObj} />
 
       {/* ══ EXHAUST RUNNERS ═════════════════════════════════════════════ */}
       <HoverPart
         label="EXHAUST SYSTEM — 4-into-1"
-        sub={`EGT: ${Number(egt).toFixed(1)}°C | ${egt > 840 ? '🔴 OVERTEMP' : '🟢 Normal'} | Stainless steel runners`}
-        color="#f97316"
-        labelPos={[0.04, -1.0, 0]}
+        sub={`EGT: ${Number(egt).toFixed(1)}°C | ${egt > 840 || isOverheating ? '🔴 OVERTEMP WARNING' : '🟢 Normal'} | Stainless steel runners`}
+        color={egt > 840 || isOverheating ? '#ef4444' : '#f97316'}
+        labelPos={[0, -0.9, 0]}
       >
-        <Tube from={[-0.26,-0.66,-0.46]} to={[-0.04,-1.18,-0.04]} radius={0.075} color={egt>840?'#ef4444':'#6b7280'} opacity={0.88} />
-        <Tube from={[-0.26,-0.66, 0.46]} to={[-0.04,-1.18, 0.04]} radius={0.075} color={egt>840?'#ef4444':'#6b7280'} opacity={0.88} />
-        <Tube from={[ 0.42,-0.66,-0.46]} to={[ 0.12,-1.18,-0.04]} radius={0.075} color={egt>840?'#ef4444':'#6b7280'} opacity={0.88} />
-        <Tube from={[ 0.42,-0.66, 0.46]} to={[ 0.12,-1.18, 0.04]} radius={0.075} color={egt>840?'#ef4444':'#6b7280'} opacity={0.88} />
-        <mesh position={[0.04, -1.3, 0]}>
-          <boxGeometry args={[0.28, 0.17, 0.19]} />
-          <meshBasicMaterial color="#f97316" wireframe transparent opacity={0.55} />
-        </mesh>
-        <Tube from={[0.04,-1.4,0]} to={[0.04,-1.65,0]} radius={0.08} color="#f97316" opacity={0.7} />
+        <Tube from={[-0.26, -0.2, -0.46]} to={[0.2, -0.65, -0.3]} radius={0.038} color={isOverheating ? '#ef4444' : '#f97316'} opacity={0.9} />
+        <Tube from={[-0.26, -0.2,  0.46]} to={[0.2, -0.65,  0.3]} radius={0.038} color={isOverheating ? '#ef4444' : '#f97316'} opacity={0.9} />
+        <Tube from={[ 0.42, -0.2, -0.46]} to={[0.2, -0.65, -0.3]} radius={0.038} color={isOverheating ? '#ef4444' : '#f97316'} opacity={0.9} />
+        <Tube from={[ 0.42, -0.2,  0.46]} to={[0.2, -0.65,  0.3]} radius={0.038} color={isOverheating ? '#ef4444' : '#f97316'} opacity={0.9} />
+        <Tube from={[0.2, -0.65, -0.3]} to={[0.55, -0.7, -0.4]} radius={0.05} color={isOverheating ? '#ef4444' : '#f97316'} opacity={0.92} />
+        <Tube from={[0.2, -0.65,  0.3]} to={[0.55, -0.7,  0.4]} radius={0.05} color={isOverheating ? '#ef4444' : '#f97316'} opacity={0.92} />
+        {isOverheating && (
+          <pointLight position={[0.3, -0.65, 0]} color="#ef4444" intensity={3.5} distance={2.5} />
+        )}
       </HoverPart>
 
       {/* ══ TWIN MAGNETOS ═══════════════════════════════════════════════ */}
@@ -502,53 +507,59 @@ export default function PistonEngine3D({ telemetry, health, activeFaults, isEngi
 
       {/* ══ OIL SUMP ════════════════════════════════════════════════════ */}
       <HoverPart
-        label="OIL SUMP (Dry-Sump)"
-        sub={`Oil pressure: ${Number(oilP).toFixed(2)} bar | Capacity: 3.0 L`}
-        color="#94a3b8"
+        label={isLubricationFault ? '🚨 OIL SUMP — PRESSURE COLLAPSE' : 'OIL SUMP (Dry-Sump)'}
+        sub={`Oil pressure: ${Number(oilP).toFixed(2)} bar | Capacity: 3.0 L | ${isLubricationFault ? '🔴 CRITICAL PRESSURE LOSS' : '🟢 Nominal'}`}
+        color={isLubricationFault ? '#ef4444' : '#94a3b8'}
         labelPos={[0.06, -0.1, 0.6]}
       >
         <GhostBox w={0.94} h={0.26} d={0.8} pos={[0.06, -0.54, 0]}
-          ghost="#334155" wire="#475569" gOp={0.14} wOp={0.36}
+          ghost={isLubricationFault ? '#7f1d1d' : '#334155'} wire={isLubricationFault ? '#ef4444' : '#475569'} gOp={isLubricationFault ? 0.35 : 0.14} wOp={isLubricationFault ? 0.75 : 0.36}
         />
+        {isLubricationFault && (
+          <pointLight position={[0.06, -0.54, 0]} color="#ef4444" intensity={4.0} distance={2.5} />
+        )}
       </HoverPart>
 
       {/* ══ FUEL SYSTEM ═════════════════════════════════════════════════ */}
       <HoverPart
-        label="FUEL SYSTEM"
-        sub={`Flow: ${Number(fuelFlow).toFixed(1)} L/h | AVGAS 100LL / Mogas`}
-        color="#3b82f6"
+        label={isInjectorFault ? '⚠️ FUEL SYSTEM — INJECTOR CLOGGED' : 'FUEL SYSTEM'}
+        sub={`Flow: ${Number(fuelFlow).toFixed(1)} L/h | ${isInjectorFault ? '🔴 FLOW SURGE (+42%) | Divergence' : '🟢 Nominal Schedule'}`}
+        color={isInjectorFault ? '#f59e0b' : '#3b82f6'}
         labelPos={[-0.1, -0.2, 0.72]}
       >
-        <Tube from={[0.54, 0.17, 0.82]} to={[0.17,-0.26, 0.57]}  radius={0.024} color="#3b82f6" opacity={0.88} />
-        <Tube from={[0.17,-0.26, 0.57]} to={[-0.34,-0.32, 0.17]} radius={0.024} color="#3b82f6" opacity={0.88} />
+        <Tube from={[0.54, 0.17, 0.82]} to={[0.17,-0.26, 0.57]} radius={isInjectorFault ? 0.034 : 0.024} color={isInjectorFault ? '#f59e0b' : '#3b82f6'} opacity={0.95} />
+        <Tube from={[0.17,-0.26, 0.57]} to={[-0.34,-0.32, 0.17]} radius={isInjectorFault ? 0.034 : 0.024} color={isInjectorFault ? '#f59e0b' : '#3b82f6'} opacity={0.95} />
+        {isInjectorFault && (
+          <pointLight position={[0.17, -0.26, 0.57]} color="#f59e0b" intensity={3.5} distance={2.0} />
+        )}
       </HoverPart>
 
       {/* ══ OIL PRESSURE LINE ═══════════════════════════════════════════ */}
       <HoverPart
         label="OIL PRESSURE LINE"
-        sub={`${Number(oilP).toFixed(2)} bar | ${oilP < 2.5 ? '🔴 LOW PRESSURE' : '🟢 Normal'}`}
-        color="#ef4444"
+        sub={`${Number(oilP).toFixed(2)} bar | ${isLubricationFault ? '🔴 LOW PRESSURE WARNING' : '🟢 Normal'}`}
+        color={isLubricationFault ? '#ef4444' : '#64748b'}
         labelPos={[0.3, 0.0, 0.6]}
       >
-        <Tube from={[0.06,-0.62,0.1]} to={[0.38, 0.1, 0.5]} radius={0.018} color="#ef4444" opacity={0.82} />
+        <Tube from={[0.06,-0.62,0.1]} to={[0.38, 0.1, 0.5]} radius={isLubricationFault ? 0.028 : 0.018} color={isLubricationFault ? '#ef4444' : '#64748b'} opacity={0.9} />
       </HoverPart>
 
-      {/* ══ ENGINE MOUNT FRAME ══════════════════════════════════════════ */}
-      <HoverPart label="ENGINE MOUNT FRAME" sub="Chromoly steel tubes | Welded 4-point mount" color="#64748b" labelPos={[0.88, 0.8, 0]}>
+      {/* ══ ENGINE MOUNT FRAME & VIBRATION RESONANCE ═════════════════════ */}
+      <HoverPart label="ENGINE MOUNT FRAME" sub={`Chromoly steel tubes | ${isVibrationFault ? '⚠️ HARMONIC RESONANCE SPIKE' : 'Nominal Dampening'}`} color={isVibrationFault ? '#f59e0b' : '#64748b'} labelPos={[0.88, 0.8, 0]}>
         {[[-0.4,-0.4],[-0.4,0.4],[0.4,-0.4],[0.4,0.4]].map(([y,z],i) => (
           <mesh key={i} position={[0.45, y * 0.58, z * 0.58]} rotation={[0, 0, Math.PI / 2]}>
             <cylinderGeometry args={[0.033, 0.033, 0.51, 8]} />
-            <meshStandardMaterial color="#374151" metalness={0.9} roughness={0.2} />
+            <meshStandardMaterial color={isVibrationFault ? '#b45309' : '#374151'} metalness={0.9} roughness={0.2} />
           </mesh>
         ))}
         <mesh position={[0.78, 0, 0]}>
           <boxGeometry args={[0.048, 0.86, 0.86]} />
-          <meshBasicMaterial color="#475569" wireframe transparent opacity={0.4} />
+          <meshBasicMaterial color={isVibrationFault ? '#f59e0b' : '#475569'} wireframe transparent opacity={0.5} />
         </mesh>
       </HoverPart>
 
       {/* Running glow */}
-      {isEngineRunning && (
+      {isEngineRunning && !isEngineFaulted && (
         <pointLight position={[0, 0, 0]} color="#38bdf8" intensity={0.5} distance={3.0} />
       )}
 

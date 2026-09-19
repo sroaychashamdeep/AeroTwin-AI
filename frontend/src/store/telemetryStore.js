@@ -19,6 +19,195 @@ const getSocketUrl = () => {
 
 const SOCKET_SERVER_URL = getSocketUrl();
 
+export function computeFaultDiagnostics(faults = {}, baseTelemetry = {}) {
+  const f = {
+    injector_degradation: Number(faults.injector_degradation) || 0,
+    misfire_severity: Number(faults.misfire_severity) || 0,
+    lubrication_degradation: Number(faults.lubrication_degradation) || 0,
+    overheating: Number(faults.overheating) || 0,
+    vibration_fault: Number(faults.vibration_fault) || 0,
+    sensor_drift: Number(faults.sensor_drift) || 0
+  };
+
+  const maxVal = Math.max(
+    f.overheating,
+    f.injector_degradation,
+    f.misfire_severity,
+    f.lubrication_degradation,
+    f.vibration_fault,
+    f.sensor_drift
+  );
+
+  if (maxVal <= 0.1) {
+    return {
+      isFaulted: false,
+      primary_fault: 'Healthy',
+      severity: 'LOW',
+      probability: 0.95,
+      is_anomaly: false,
+      anomaly_score: 0.18,
+      overall_health: 94.2,
+      thermal_health: 92.5,
+      combustion_health: 96.0,
+      lubrication_health: 93.8,
+      vibration_health: 95.1,
+      alerts: [],
+      explanation: {
+        primary_fault: 'Healthy',
+        probability: 0.95,
+        narrative_summary: 'All powerplant parameters operating within certified MALE UAV nominal envelope.'
+      },
+      telemetryDeltas: { rpm: 0, cht: 0, egt: 0, oil_pressure: 0, oil_temperature: 0, fuel_flow: 0, vibration: 0 }
+    };
+  }
+
+  // Determine dominant fault
+  let primary_fault = 'Unknown Anomaly';
+  let severity = maxVal > 0.6 ? 'CRITICAL' : 'WARNING';
+  let narrative = '';
+  let component = 'ENGINE';
+  let recommendation = '';
+  const alerts = [];
+
+  let chtDelta = 0;
+  let egtDelta = 0;
+  let rpmDelta = 0;
+  let oilPDelta = 0;
+  let oilTDelta = 0;
+  let ffDelta = 0;
+  let vibDelta = 0;
+
+  if (f.overheating >= maxVal - 0.01) {
+    primary_fault = 'Overheating';
+    severity = f.overheating > 0.6 ? 'CRITICAL' : 'WARNING';
+    chtDelta = f.overheating * 58;
+    egtDelta = f.overheating * 68;
+    component = 'CYLINDERS';
+    narrative = `Cylinder head temperature soak detected (${(142.4 + chtDelta).toFixed(1)}°C vs 160°C threshold). Severe thermal stress on exhaust valves and piston crowns.`;
+    recommendation = 'Reduce throttle to 60%, enrich fuel mixture, initiate cooling descent.';
+    alerts.push({
+      id: `ALT-HOT-${Date.now() % 10000}`,
+      severity,
+      title: '🚨 CRITICAL: CYLINDER THERMAL OVERHEATING',
+      message: `CHT elevated to ${(142.4 + chtDelta).toFixed(1)}°C. Coolant airflow compromised. Immediate valve seizure hazard.`,
+      component: 'CYLINDERS',
+      recommendation
+    });
+  } else if (f.injector_degradation >= maxVal - 0.01) {
+    primary_fault = 'Injector Abnormality';
+    severity = f.injector_degradation > 0.6 ? 'HIGH' : 'WARNING';
+    ffDelta = f.injector_degradation * 13.8;
+    egtDelta = f.injector_degradation * 44;
+    chtDelta = f.injector_degradation * 18;
+    vibDelta = f.injector_degradation * 1.6;
+    component = 'FUEL_SYSTEM';
+    narrative = `Fuel flow surge (${(18.2 + ffDelta).toFixed(1)} L/h) detected on Cylinder 3 rail. Electro-injector nozzle clogging with localized mixture divergence.`;
+    recommendation = 'Switch to auxiliary fuel pump, adjust mixture trim, inspect injector #3.';
+    alerts.push({
+      id: `ALT-INJ-${Date.now() % 10000}`,
+      severity,
+      title: '⚠️ MASTER CAUTION: INJECTOR DEGRADATION DETECTED',
+      message: `Fuel flow surged to ${(18.2 + ffDelta).toFixed(1)} L/h (+${Math.round(f.injector_degradation * 65)}%). Mixture divergence on Cylinder 3.`,
+      component: 'FUEL_SYSTEM',
+      recommendation
+    });
+  } else if (f.misfire_severity >= maxVal - 0.01) {
+    primary_fault = 'Misfire';
+    severity = f.misfire_severity > 0.6 ? 'HIGH' : 'WARNING';
+    rpmDelta = -f.misfire_severity * 480;
+    vibDelta = f.misfire_severity * 4.2;
+    egtDelta = -f.misfire_severity * 60;
+    component = 'SPARK_PLUGS';
+    narrative = `Loss of primary spark on Cylinder 2. Power loss ~${Math.round(f.misfire_severity * 28)}%, high harmonic torque pulsation and airframe vibration.`;
+    recommendation = 'Verify dual magneto ignition channels, monitor cylinder 2 EGT.';
+    alerts.push({
+      id: `ALT-MIS-${Date.now() % 10000}`,
+      severity,
+      title: '⚠️ ENGINE MISFIRE ALERT: CYLINDER 2',
+      message: `Intermittent combustion drop on Cylinder 2. Vibration elevated to ${(2.15 + vibDelta).toFixed(2)} mm/s.`,
+      component: 'SPARK_PLUGS',
+      recommendation
+    });
+  } else if (f.lubrication_degradation >= maxVal - 0.01) {
+    primary_fault = 'Lubrication Degradation';
+    severity = 'CRITICAL';
+    oilPDelta = -f.lubrication_degradation * 2.6;
+    oilTDelta = f.lubrication_degradation * 24;
+    component = 'OIL_SYSTEM';
+    narrative = `Oil pressure collapse (${Math.max(1.1, 4.2 + oilPDelta).toFixed(2)} bar) and oil temperature rise. Journal bearing hydrodynamic film failure imminent.`;
+    recommendation = 'Emergency throttle reduction, prepare for nearest alternate airfield landing.';
+    alerts.push({
+      id: `ALT-LUB-${Date.now() % 10000}`,
+      severity: 'CRITICAL',
+      title: '🚨 MASTER WARNING: OIL PRESSURE COLLAPSE',
+      message: `Oil pressure dropped to ${Math.max(1.1, 4.2 + oilPDelta).toFixed(2)} bar (Critical min 2.5 bar). Crankshaft bearing seizure hazard.`,
+      component: 'OIL_SYSTEM',
+      recommendation
+    });
+  } else if (f.vibration_fault >= maxVal - 0.01) {
+    primary_fault = 'Abnormal Vibration';
+    severity = f.vibration_fault > 0.6 ? 'HIGH' : 'WARNING';
+    vibDelta = f.vibration_fault * 6.2;
+    component = 'CRANKSHAFT';
+    narrative = `Propeller drive shaft and reduction gearbox 1X mechanical unbalance. Vibration level ${(2.15 + vibDelta).toFixed(2)} mm/s exceeding certified limits.`;
+    recommendation = 'Inspect propeller pitch tracking, check engine chromoly mount bolts.';
+    alerts.push({
+      id: `ALT-VIB-${Date.now() % 10000}`,
+      severity,
+      title: '⚠️ EXCESSIVE AIRFRAME VIBRATION',
+      message: `Rotational vibration spike to ${(2.15 + vibDelta).toFixed(2)} mm/s RMS (Limit: 4.5 mm/s). Mechanical unbalance.`,
+      component: 'CRANKSHAFT',
+      recommendation
+    });
+  } else if (f.sensor_drift >= maxVal - 0.01) {
+    primary_fault = 'Sensor Drift';
+    severity = 'MODERATE';
+    chtDelta = -f.sensor_drift * 55;
+    component = 'SENSORS';
+    narrative = `Thermocouple CHT sensor drifting -55°C below thermodynamic expectations. Kalman residual anomaly detected.`;
+    recommendation = 'Cross-check redundant CHT probe channels, perform avionics zero-calibration.';
+    alerts.push({
+      id: `ALT-SENS-${Date.now() % 10000}`,
+      severity: 'WARNING',
+      title: '⚠️ SENSOR CALIBRATION DRIFT',
+      message: 'Thermocouple reading divergent from Kalman state estimator by >45°C.',
+      component: 'SENSORS',
+      recommendation
+    });
+  }
+
+  const overallHealth = Math.max(20, Math.round(94.2 - maxVal * 55));
+
+  return {
+    isFaulted: true,
+    primary_fault,
+    severity,
+    probability: Number((0.72 + maxVal * 0.25).toFixed(2)),
+    is_anomaly: true,
+    anomaly_score: Number((0.65 + maxVal * 0.32).toFixed(2)),
+    overall_health: overallHealth,
+    thermal_health: f.overheating > 0.2 ? Math.max(15, Math.round(92.5 - f.overheating * 75)) : 92.5,
+    combustion_health: f.misfire_severity > 0.2 || f.injector_degradation > 0.2 ? Math.max(20, Math.round(96 - (f.misfire_severity + f.injector_degradation) * 50)) : 96,
+    lubrication_health: f.lubrication_degradation > 0.2 ? Math.max(15, Math.round(93.8 - f.lubrication_degradation * 75)) : 93.8,
+    vibration_health: f.vibration_fault > 0.2 ? Math.max(15, Math.round(95.1 - f.vibration_fault * 75)) : 95.1,
+    alerts,
+    explanation: {
+      primary_fault,
+      probability: Number((0.72 + maxVal * 0.25).toFixed(2)),
+      narrative_summary: narrative
+    },
+    telemetryDeltas: {
+      rpm: Math.round(rpmDelta),
+      cht: Number(chtDelta.toFixed(1)),
+      egt: Number(egtDelta.toFixed(1)),
+      oil_pressure: Number(oilPDelta.toFixed(2)),
+      oil_temperature: Number(oilTDelta.toFixed(1)),
+      fuel_flow: Number(ffDelta.toFixed(1)),
+      vibration: Number(vibDelta.toFixed(2))
+    }
+  };
+}
+
 export const useTelemetryStore = create((set, get) => {
   let socket = null;
   let fallbackTimer = null;
@@ -209,6 +398,17 @@ export const useTelemetryStore = create((set, get) => {
         let vib = 2.15 + (Math.sin(Date.now() / 750) * 0.08);
         let bus = 28.1 + (Math.random() * 0.1 - 0.05);
 
+        const activeFaults = get().activeFaults || {};
+        const diag = computeFaultDiagnostics(activeFaults, base);
+
+        rpm += diag.telemetryDeltas.rpm;
+        cht += diag.telemetryDeltas.cht;
+        egt += diag.telemetryDeltas.egt;
+        oil_pressure = Math.max(0.8, oil_pressure + diag.telemetryDeltas.oil_pressure);
+        oil_temp += diag.telemetryDeltas.oil_temperature;
+        fuel_flow += diag.telemetryDeltas.fuel_flow;
+        vib += diag.telemetryDeltas.vibration;
+
         if (currentEngineState === 'OFF') {
           rpm = 0;
           cht = Math.max(24, ((base.cht || 142) - 0.3));
@@ -246,12 +446,27 @@ export const useTelemetryStore = create((set, get) => {
           oil_temperature: simulatedTelemetry.oil_temperature,
           fuel_flow: simulatedTelemetry.fuel_flow,
           vibration: simulatedTelemetry.vibration,
-          anomaly_score: currentEngineState === 'OFF' ? 0.05 : 0.18,
-          overall_health: 94.2
+          anomaly_score: currentEngineState === 'OFF' ? 0.05 : (diag.isFaulted ? diag.anomaly_score : 0.18),
+          overall_health: diag.isFaulted ? diag.overall_health : 94.2
         };
 
         set((state) => ({
           telemetry: simulatedTelemetry,
+          fault: diag.isFaulted ? {
+            ...state.fault,
+            primary_fault: diag.primary_fault,
+            severity: diag.severity,
+            probability: diag.probability
+          } : state.fault,
+          anomaly: diag.isFaulted ? {
+            ...state.anomaly,
+            is_anomaly: true,
+            anomaly_score: diag.anomaly_score
+          } : state.anomaly,
+          health: diag.isFaulted ? {
+            ...state.health,
+            overall_health: diag.overall_health
+          } : state.health,
           history: [...state.history, newHistoryPoint].slice(-40)
         }));
       };
@@ -366,7 +581,57 @@ export const useTelemetryStore = create((set, get) => {
 
     injectFault: (faultUpdates) => {
       const merged = { ...get().activeFaults, ...faultUpdates };
-      set({ activeFaults: merged });
+      const diag = computeFaultDiagnostics(merged, get().telemetry);
+      
+      const currentTelem = get().telemetry || {};
+      const updatedTelem = {
+        ...currentTelem,
+        rpm: Math.max(0, Math.round(4850 + diag.telemetryDeltas.rpm)),
+        cht: Number((142.4 + diag.telemetryDeltas.cht).toFixed(1)),
+        egt: Number((795.0 + diag.telemetryDeltas.egt).toFixed(1)),
+        oil_pressure: Math.max(0.8, Number((4.2 + diag.telemetryDeltas.oil_pressure).toFixed(2))),
+        oil_temperature: Number((92.5 + diag.telemetryDeltas.oil_temperature).toFixed(1)),
+        fuel_flow: Number((18.2 + diag.telemetryDeltas.fuel_flow).toFixed(1)),
+        vibration: Number((2.15 + diag.telemetryDeltas.vibration).toFixed(2))
+      };
+
+      set((state) => ({
+        activeFaults: merged,
+        telemetry: updatedTelem,
+        fault: {
+          ...state.fault,
+          primary_fault: diag.primary_fault,
+          severity: diag.severity,
+          probability: diag.probability,
+          class_probabilities: {
+            ...state.fault.class_probabilities,
+            [diag.primary_fault]: diag.probability,
+            Healthy: diag.isFaulted ? 0.05 : 0.95
+          }
+        },
+        anomaly: {
+          ...state.anomaly,
+          is_anomaly: diag.is_anomaly,
+          anomaly_score: diag.anomaly_score,
+          classification: diag.primary_fault
+        },
+        health: {
+          ...state.health,
+          overall_health: diag.overall_health,
+          thermal_health: diag.thermal_health,
+          combustion_health: diag.combustion_health,
+          lubrication_health: diag.lubrication_health,
+          vibration_health: diag.vibration_health,
+          degradation_index: Math.round((100 - diag.overall_health) * 10) / 10
+        },
+        explanation: diag.explanation,
+        alerts: diag.alerts.length > 0 ? [...diag.alerts, ...state.alerts.filter(a => !a.id.startsWith('ALT-'))].slice(0, 30) : state.alerts
+      }));
+
+      if (diag.isFaulted) {
+        soundFx.playWarningChime();
+      }
+
       if (socket && socket.connected) {
         socket.emit('inject_fault', merged);
       }
@@ -381,7 +646,45 @@ export const useTelemetryStore = create((set, get) => {
         vibration_fault: 0.0,
         sensor_drift: 0.0
       };
-      set({ activeFaults: cleared });
+      const diag = computeFaultDiagnostics(cleared, get().telemetry);
+      const restoredTelem = {
+        ...get().telemetry,
+        rpm: 4850,
+        cht: 142.4,
+        egt: 795.0,
+        oil_pressure: 4.2,
+        oil_temperature: 92.5,
+        fuel_flow: 18.2,
+        vibration: 2.15
+      };
+      set((state) => ({
+        activeFaults: cleared,
+        telemetry: restoredTelem,
+        fault: {
+          ...state.fault,
+          primary_fault: 'Healthy',
+          severity: 'LOW',
+          probability: 0.95
+        },
+        anomaly: {
+          ...state.anomaly,
+          is_anomaly: false,
+          anomaly_score: 0.18,
+          classification: 'Normal'
+        },
+        health: {
+          ...state.health,
+          overall_health: 94.2,
+          thermal_health: 92.5,
+          combustion_health: 96.0,
+          lubrication_health: 93.8,
+          vibration_health: 95.1,
+          degradation_index: 5.8
+        },
+        explanation: diag.explanation,
+        alerts: []
+      }));
+      soundFx.playSuccess();
       if (socket && socket.connected) {
         socket.emit('clear_faults');
       }

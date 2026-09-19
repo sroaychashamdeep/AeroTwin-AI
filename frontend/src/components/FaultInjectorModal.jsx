@@ -104,10 +104,10 @@ export default function FaultInjectorModal({ isOpen, onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-fadeIn">
-      <div className="bg-aerocard border border-aeroborder w-full max-w-4xl rounded-lg shadow-2xl overflow-hidden font-mono flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-fadeIn">
+      <div className="bg-slate-900 border border-slate-700 w-full max-w-4xl rounded-xl shadow-[0_0_50px_rgba(0,0,0,0.9)] overflow-hidden font-mono flex flex-col max-h-[90vh] relative z-[100000]">
         {/* Header */}
-        <div className="bg-aerodark px-6 py-4 border-b border-aeroborder flex items-center justify-between">
+        <div className="bg-slate-950 px-6 py-4 border-b border-slate-800 flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <div className="w-8 h-8 rounded bg-red-950/80 border border-red-700 flex items-center justify-center text-red-400">
               <AlertTriangle className="w-4 h-4" />

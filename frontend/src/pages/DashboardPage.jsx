@@ -74,6 +74,7 @@ export default function DashboardPage({ onOpenFaultModal }) {
     openCanICompleteMissionModal,
     missionReliability,
     activeFaults,
+    clearAllFaults,
     flightParams,
     setFlightParams,
     engineState,
@@ -121,7 +122,8 @@ export default function DashboardPage({ onOpenFaultModal }) {
     model_agreement: 0.89
   };
 
-  const isFaulted = (fault?.primary_fault && fault.primary_fault !== 'Healthy') || anomaly?.is_anomaly;
+  const hasActiveFault = Object.values(activeFaults || {}).some(v => typeof v === 'number' && v > 0.15);
+  const isFaulted = (fault?.primary_fault && fault.primary_fault !== 'Healthy') || anomaly?.is_anomaly || hasActiveFault;
 
   return (
     <div className="space-y-4 p-4 font-mono">
@@ -256,6 +258,27 @@ export default function DashboardPage({ onOpenFaultModal }) {
             </div>
           </div>
           <div className="flex items-center space-x-2">
+            <button
+              onClick={() => setDashboard3DMode('FULL_UAV')}
+              className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-sky-300 border border-slate-700 text-xs font-mono font-bold transition flex items-center space-x-1"
+              title="Inspect fault on UAV 3D Airframe"
+            >
+              <span>🛩️ VIEW UAV</span>
+            </button>
+            <button
+              onClick={() => setDashboard3DMode('ENGINE_ONLY')}
+              className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700 text-xs font-mono font-bold transition flex items-center space-x-1"
+              title="Inspect fault on Rotax Powerplant Twin"
+            >
+              <span>⚙️ VIEW ENGINE</span>
+            </button>
+            <button
+              onClick={clearAllFaults}
+              className="px-2.5 py-1 rounded bg-emerald-950 hover:bg-emerald-900 text-emerald-300 border border-emerald-700 text-xs font-mono font-bold transition flex items-center space-x-1"
+              title="Clear all faults and restore healthy state"
+            >
+              <span>CLEAR FAULT</span>
+            </button>
             <button
               onClick={openWhatShouldIDoModal}
               className="px-3 py-1 rounded bg-amber-600 hover:bg-amber-500 text-slate-950 font-mono text-xs font-bold transition shadow"
